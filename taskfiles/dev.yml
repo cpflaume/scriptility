@@ -1,0 +1,73 @@
+version: '3'
+
+# Entwickler-Tasks: Linting, Tests, Codegenerierung.
+
+vars:
+  PY_DIRS: scripts tests
+  SH_FILES:
+    sh: find scripts tests -type f -name "*.sh" 2>/dev/null | tr '\n' ' '
+
+tasks:
+  lint:
+    desc: Führt alle Linter aus (shellcheck, ruff, ansible-lint, terraform fmt)
+    deps: [lint:sh, lint:py, lint:tf, lint:ansible]
+
+  lint:sh:
+    desc: Shellcheck über alle bash-Skripte
+    cmds:
+      - shellcheck -x {{.SH_FILES}}
+    preconditions:
+      - sh: command -v shellcheck
+        msg: "shellcheck nicht installiert (apt install shellcheck)"
+
+  lint:py:
+    desc: Ruff über alle Python-Skripte
+    cmds:
+      - uv run ruff check {{.PY_DIRS}}
+      - uv run ruff format --check {{.PY_DIRS}}
+
+  lint:tf:
+    desc: terraform fmt -check & validate
+    dir: infrastructure/terraform
+    cmds:
+      - terraform fmt -check -recursive
+    preconditions:
+      - sh: command -v terraform
+        msg: "terraform nicht installiert"
+
+  lint:ansible:
+    desc: ansible-lint über alle Playbooks
+    cmds:
+      - uv run ansible-lint infrastructure/ansible
+    preconditions:
+      - sh: command -v ansible-lint || uv run ansible-lint --version
+        msg: "ansible-lint fehlt"
+
+  test:
+    desc: Führt alle Tests aus
+    deps: [test:bash, test:py]
+
+  test:bash:
+    desc: Bats-Tests für bash-Skripte
+    cmds:
+      - bats -r tests
+    preconditions:
+      - sh: command -v bats
+        msg: "bats nicht installiert (https://bats-core.readthedocs.io)"
+
+  test:py:
+    desc: Pytest für Python-Skripte
+    cmds:
+      - uv run pytest tests -q
+
+  new:
+    desc: 'Generiert neues Skript inkl. Test+Task. Usage: task dev:new -- <bash|py> <namespace> <skript-name>'
+    cmds:
+      - bash scripts/lib/new_script.sh {{.CLI_ARGS}}
+
+  format:
+    desc: Auto-Format Python (ruff) und Terraform
+    cmds:
+      - uv run ruff format {{.PY_DIRS}}
+      - uv run ruff check --fix {{.PY_DIRS}}
+      - terraform fmt -recursive infrastructure/terraform || true

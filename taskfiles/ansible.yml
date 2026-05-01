@@ -1,0 +1,19 @@
+version: '3'
+
+# Ansible-Wrapper. Inventories liegen unter infrastructure/ansible/inventories.
+
+vars:
+  ANSIBLE_DIR: infrastructure/ansible
+
+tasks:
+  ping:
+    desc: 'Ansible-Ping über ein Inventory. Usage: task ansible:ping -- -i inventories/staging'
+    dir: '{{.ANSIBLE_DIR}}'
+    cmds:
+      - uv run ansible all -m ping {{.CLI_ARGS}}
+
+  play:
+    desc: 'Playbook ausführen. Usage: task ansible:play -- playbooks/site.yml -i inventories/staging'
+    dir: '{{.ANSIBLE_DIR}}'
+    cmds:
+      - uv run ansible-playbook {{.CLI_ARGS}}

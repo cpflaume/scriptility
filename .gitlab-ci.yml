@@ -1,0 +1,21 @@
+# GitLab CI - läuft Lint + Test auf jedem MR.
+stages: [lint, test]
+
+default:
+  image: ghcr.io/astral-sh/uv:python3.12-bookworm
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends shellcheck bats jq
+    - uv sync --frozen
+    - curl -fsSL https://taskfile.dev/install.sh | sh -s -- -b /usr/local/bin
+
+lint:
+  stage: lint
+  script:
+    - task dev:lint:sh
+    - task dev:lint:py
+
+test:
+  stage: test
+  script:
+    - task dev:test:bash
+    - task dev:test:py

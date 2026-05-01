@@ -1,0 +1,19 @@
+version: '3'
+
+# Operationen auf Linux-Hosts via SSH. Erwartet ssh-Konfiguration in ~/.ssh/config.
+
+tasks:
+  list-users:
+    desc: 'Listet lokale Benutzer eines Linux-Hosts. Usage: task linux:list-users -- <host>'
+    cmds:
+      - bash scripts/linux/list_users.sh {{.CLI_ARGS}}
+
+  list-firewall:
+    desc: 'Zeigt iptables/nftables-Regeln. Usage: task linux:list-firewall -- <host>'
+    cmds:
+      - bash scripts/linux/list_firewall.sh {{.CLI_ARGS}}
+
+  cron-overview:
+    desc: 'Sammelt alle Cronjobs (system + per-user). Usage: task linux:cron-overview -- <host>'
+    cmds:
+      - bash scripts/linux/cron_overview.sh {{.CLI_ARGS}}

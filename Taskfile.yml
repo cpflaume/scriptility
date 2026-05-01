@@ -1,0 +1,36 @@
+version: '3'
+
+# Root Taskfile - delegiert in domänenspezifische Taskfiles unter ./taskfiles.
+# Aufruf:  task <namespace>:<task>     z.B.  task network:check-port -- 10.0.0.1 443
+#          task --list-all             Übersicht aller Tasks mit Beschreibung
+#          task setup                  Lokale Entwicklungsumgebung einrichten
+
+dotenv: ['.env']
+
+vars:
+  REPO_ROOT:
+    sh: git rev-parse --show-toplevel
+  SCRIPTS_DIR: '{{.REPO_ROOT}}/scripts'
+
+includes:
+  setup:      { taskfile: ./taskfiles/setup.yml,      dir: '{{.REPO_ROOT}}' }
+  dev:        { taskfile: ./taskfiles/dev.yml,        dir: '{{.REPO_ROOT}}' }
+  network:    { taskfile: ./taskfiles/network.yml,    dir: '{{.REPO_ROOT}}' }
+  gitlab:     { taskfile: ./taskfiles/gitlab.yml,     dir: '{{.REPO_ROOT}}' }
+  stackit:    { taskfile: ./taskfiles/stackit.yml,    dir: '{{.REPO_ROOT}}' }
+  linux:      { taskfile: ./taskfiles/linux.yml,      dir: '{{.REPO_ROOT}}' }
+  windows:    { taskfile: ./taskfiles/windows.yml,    dir: '{{.REPO_ROOT}}' }
+  terraform:  { taskfile: ./taskfiles/terraform.yml,  dir: '{{.REPO_ROOT}}' }
+  ansible:    { taskfile: ./taskfiles/ansible.yml,    dir: '{{.REPO_ROOT}}' }
+
+tasks:
+  default:
+    desc: Zeigt alle verfügbaren Tasks
+    cmds:
+      - task --list-all
+    silent: true
+
+  doctor:
+    desc: Prüft, ob alle benötigten CLI-Tools installiert sind
+    cmds:
+      - bash {{.SCRIPTS_DIR}}/lib/doctor.sh

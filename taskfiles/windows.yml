@@ -1,0 +1,23 @@
+version: '3'
+
+# Operationen auf Windows-Hosts via WinRM/PSRemoting (über pywinrm).
+# Erwartet WIN_USER und WIN_PASSWORD in .env, oder Kerberos-Ticket.
+
+tasks:
+  list-users:
+    desc: 'Listet lokale Windows-Benutzer. Usage: task windows:list-users -- <host>'
+    cmds:
+      - uv run python scripts/windows/list_users.py {{.CLI_ARGS}}
+    preconditions:
+      - sh: '[ -n "$WIN_USER" ] && [ -n "$WIN_PASSWORD" ]'
+        msg: "WIN_USER/WIN_PASSWORD nicht gesetzt"
+
+  list-services:
+    desc: 'Listet alle laufenden Services. Usage: task windows:list-services -- <host>'
+    cmds:
+      - uv run python scripts/windows/list_services.py {{.CLI_ARGS}}
+
+  scheduled-tasks:
+    desc: 'Listet Scheduled Tasks. Usage: task windows:scheduled-tasks -- <host>'
+    cmds:
+      - uv run python scripts/windows/scheduled_tasks.py {{.CLI_ARGS}}

@@ -1,0 +1,17 @@
+# Verantwortliche pro Domäne. Bitte beim Hinzufügen eines Namespace ergänzen.
+# Format: <pfad> @user1 @user2
+
+/taskfiles/network.yml    @devops-team
+/scripts/network/         @devops-team
+/taskfiles/gitlab.yml     @devops-team
+/scripts/gitlab/          @devops-team
+/taskfiles/stackit.yml    @cloud-team
+/scripts/stackit/         @cloud-team
+/taskfiles/linux.yml      @sysadmins
+/scripts/linux/           @sysadmins
+/taskfiles/windows.yml    @sysadmins
+/scripts/windows/         @sysadmins
+/taskfiles/terraform.yml  @cloud-team
+/infrastructure/terraform/@cloud-team
+/taskfiles/ansible.yml    @sysadmins
+/infrastructure/ansible/  @sysadmins

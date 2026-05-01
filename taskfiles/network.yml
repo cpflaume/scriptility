@@ -1,0 +1,23 @@
+version: '3'
+
+# Network-Checks. Beispiele: Port-Erreichbarkeit, DNS-Auflösung.
+
+tasks:
+  check-port:
+    desc: 'Prüft ob HOST:PORT erreichbar ist. Usage: task network:check-port -- <host> <port> [timeout]'
+    summary: |
+      Prüft TCP-Erreichbarkeit eines Hosts.
+      Beispiel:  task network:check-port -- 10.0.0.1 443 5
+      Exit:      0 = offen, 1 = geschlossen/timeout, 2 = Aufruf-Fehler
+    cmds:
+      - bash scripts/network/check_port.sh {{.CLI_ARGS}}
+
+  check-port-py:
+    desc: 'Python-Variante mit JSON-Output. Usage: task network:check-port-py -- --host h --port p [--json]'
+    cmds:
+      - uv run python scripts/network/check_port.py {{.CLI_ARGS}}
+
+  resolve:
+    desc: 'DNS-Auflösung mit allen Records. Usage: task network:resolve -- <hostname>'
+    cmds:
+      - bash scripts/network/resolve.sh {{.CLI_ARGS}}
