@@ -15,5 +15,6 @@ Datei ergänzt nur den menschlichen PR-Prozess.
 
 ## Reviews
 
-CODEOWNERS-Review pro Namespace ist Pflicht. Reviews ausserhalb des eigenen
-Namespaces sind willkommen, aber nicht erforderlich.
+Das Repo ist **public** - jede Aenderung braucht Approval eines Admins
+(`CODEOWNERS`). Reviews durch andere Team-Mitglieder sind willkommen, ersetzen
+aber das Admin-Approval nicht.
