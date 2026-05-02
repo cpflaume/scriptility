@@ -28,7 +28,7 @@ def check_port(host: str, port: int, timeout: float) -> dict:
     try:
         sock.connect((host, port))
         result["open"] = True
-    except (socket.timeout, OSError) as exc:
+    except (TimeoutError, OSError) as exc:
         result["error"] = str(exc)
     finally:
         sock.close()

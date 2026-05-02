@@ -13,7 +13,12 @@ from lib.common import EXIT_USAGE, require_env  # noqa: E402
 
 def session(host: str) -> winrm.Session:
     env = require_env("WIN_USER", "WIN_PASSWORD")
-    return winrm.Session(f"https://{host}:5986/wsman", auth=(env["WIN_USER"], env["WIN_PASSWORD"]), transport="ntlm", server_cert_validation="ignore")
+    return winrm.Session(
+        f"https://{host}:5986/wsman",
+        auth=(env["WIN_USER"], env["WIN_PASSWORD"]),
+        transport="ntlm",
+        server_cert_validation="ignore",
+    )
 
 
 def run_ps(host: str, script: str) -> str:

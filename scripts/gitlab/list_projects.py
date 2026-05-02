@@ -44,7 +44,9 @@ def main(argv=None) -> int:
                 break
             projects.extend(chunk)
             page += 1
-    rows = [{"id": p["id"], "path": p["path_with_namespace"], "default_branch": p.get("default_branch")} for p in projects]
+    rows = [
+        {"id": p["id"], "path": p["path_with_namespace"], "default_branch": p.get("default_branch")} for p in projects
+    ]
     emit(rows, json_output=args.json_output, table_fn=lambda rs: [print(f"{r['id']:>8}  {r['path']}") for r in rs])
     return EXIT_OK
 
