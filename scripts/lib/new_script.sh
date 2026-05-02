@@ -22,25 +22,31 @@ mkdir -p "$SCRIPT_DIR" "$TEST_DIR"
 
 case "$KIND" in
     bash)
-        SCRIPT_PATH="$SCRIPT_DIR/${SAFE_NAME}.sh"
+        EXT="sh"
+        RUNNER="bash"
+        SCRIPT_PATH="$SCRIPT_DIR/${SAFE_NAME}.${EXT}"
         TEST_PATH="$TEST_DIR/${SAFE_NAME}.bats"
-        cp "$ROOT/templates/script.sh.tpl" "$SCRIPT_PATH"
-        cp "$ROOT/templates/script.bats.tpl" "$TEST_PATH"
-        chmod +x "$SCRIPT_PATH"
-        sed -i "s|{{NAME}}|$SAFE_NAME|g" "$SCRIPT_PATH" "$TEST_PATH"
-        sed -i "s|{{NS}}|$NS|g" "$TEST_PATH"
+        TPL="$ROOT/templates/script.sh.tpl"
+        TEST_TPL="$ROOT/templates/script.bats.tpl"
         ;;
     py)
-        SCRIPT_PATH="$SCRIPT_DIR/${SAFE_NAME}.py"
+        EXT="py"
+        RUNNER="uv run python"
+        SCRIPT_PATH="$SCRIPT_DIR/${SAFE_NAME}.${EXT}"
         TEST_PATH="$TEST_DIR/test_${SAFE_NAME}.py"
-        cp "$ROOT/templates/script.py.tpl" "$SCRIPT_PATH"
-        cp "$ROOT/templates/test_py.py.tpl" "$TEST_PATH"
-        sed -i "s|{{NAME}}|$SAFE_NAME|g" "$SCRIPT_PATH" "$TEST_PATH"
+        TPL="$ROOT/templates/script.py.tpl"
+        TEST_TPL="$ROOT/templates/test_py.py.tpl"
         ;;
     *)
         die "Unbekannter Kind: $KIND (bash|py)" 2
         ;;
 esac
+
+cp "$TPL" "$SCRIPT_PATH"
+cp "$TEST_TPL" "$TEST_PATH"
+[ "$KIND" = "bash" ] && chmod +x "$SCRIPT_PATH"
+sed -i "s|{{NAME}}|$SAFE_NAME|g" "$SCRIPT_PATH" "$TEST_PATH"
+sed -i "s|{{NS}}|$NS|g" "$TEST_PATH"
 
 log::info "Erstellt: $SCRIPT_PATH"
 log::info "Erstellt: $TEST_PATH"
@@ -50,5 +56,5 @@ cat <<EOF
   ${NAME}:
     desc: 'TODO. Usage: task ${NS}:${NAME} -- <args>'
     cmds:
-      - ${KIND/py/uv run python} scripts/${NS}/${SAFE_NAME}.${KIND/py/py}${KIND/bash/.sh} {{.CLI_ARGS}}
+      - ${RUNNER} scripts/${NS}/${SAFE_NAME}.${EXT} {{.CLI_ARGS}}
 EOF
