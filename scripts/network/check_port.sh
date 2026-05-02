@@ -24,7 +24,8 @@ TIMEOUT="${3:-3}"
 
 # Validierung
 [[ "$PORT" =~ ^[0-9]+$ ]] || die "Port muss numerisch sein: $PORT" 2
-[ "$PORT" -ge 1 ] && [ "$PORT" -le 65535 ] || die "Port ausserhalb 1-65535: $PORT" 2
+[ "$PORT" -ge 1 ] || die "Port ausserhalb 1-65535: $PORT" 2
+[ "$PORT" -le 65535 ] || die "Port ausserhalb 1-65535: $PORT" 2
 
 require_cmd timeout
 
