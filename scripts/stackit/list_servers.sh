@@ -6,7 +6,8 @@ set -euo pipefail
 source "$(dirname "$0")/../lib/common.sh"
 
 [ $# -eq 1 ] || die "Usage: $0 <project_id>" 2
-require_cmd stackit jq
+require_cmd stackit jq column
+require_env STACKIT_SERVICE_ACCOUNT_TOKEN
 
 stackit server list --project-id "$1" --output-format json \
     | jq -r '.[] | [.id, .name, .status, .machineType] | @tsv' \
