@@ -2,6 +2,8 @@
 # Prüft, ob alle benötigten CLI-Tools installiert sind.
 # Gibt eine Tabelle aus und endet mit Exit 1, wenn etwas fehlt.
 
+# Bewusst ohne `-e`: das Skript soll alle Tools pruefen und am Ende eine
+# Sammelmeldung ausgeben, statt beim ersten fehlenden Tool abzubrechen.
 set -uo pipefail
 
 REQUIRED=(task bash python3 uv git)
