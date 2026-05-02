@@ -20,7 +20,7 @@ from pathlib import Path
 import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from lib.common import EXIT_OK, EXIT_USAGE, emit, get_logger, require_env  # noqa: E402
+from lib.common import EXIT_FAIL, EXIT_OK, emit, get_logger, require_env  # noqa: E402
 
 log = get_logger("gitlab.schedules")
 
@@ -96,4 +96,4 @@ if __name__ == "__main__":
         sys.exit(main())
     except httpx.HTTPStatusError as exc:
         log.error("GitLab-API-Fehler: %s", exc)
-        sys.exit(EXIT_USAGE)
+        sys.exit(EXIT_FAIL)
