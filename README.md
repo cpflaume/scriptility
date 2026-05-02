@@ -19,6 +19,7 @@ task network:check-port -- 10.0.0.1 443
 | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | PR-Workflow & Checkliste |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Layout & Designentscheidungen |
 | [AGENTS.md](AGENTS.md) | Kanonischer Skript-/Task-Vertrag (auch von AI-Tools gelesen) |
+| [renovate.json](renovate.json) | Renovate-Konfig (Dependency-Updates Mo+Do, Auto-Merge bei dev-Patches) |
 
 > AI-Assistenten (Claude Code, Continue, Roo Code) lesen `AGENTS.md` über Symlinks
 > (`CLAUDE.md`, `.continue/rules/project.md`, `.roo/rules/project.md`).
