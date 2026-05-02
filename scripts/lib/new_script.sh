@@ -45,8 +45,7 @@ esac
 cp "$TPL" "$SCRIPT_PATH"
 cp "$TEST_TPL" "$TEST_PATH"
 [ "$KIND" = "bash" ] && chmod +x "$SCRIPT_PATH"
-sed -i "s|{{NAME}}|$SAFE_NAME|g" "$SCRIPT_PATH" "$TEST_PATH"
-sed -i "s|{{NS}}|$NS|g" "$TEST_PATH"
+sed -i "s|{{NAME}}|$SAFE_NAME|g; s|{{NS}}|$NS|g" "$SCRIPT_PATH" "$TEST_PATH"
 
 log::info "Erstellt: $SCRIPT_PATH"
 log::info "Erstellt: $TEST_PATH"
