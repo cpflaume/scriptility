@@ -42,6 +42,9 @@ case "$KIND" in
         ;;
 esac
 
+[ -e "$SCRIPT_PATH" ] && die "Skript existiert bereits: $SCRIPT_PATH"
+[ -e "$TEST_PATH" ] && die "Test existiert bereits: $TEST_PATH"
+
 cp "$TPL" "$SCRIPT_PATH"
 cp "$TEST_TPL" "$TEST_PATH"
 [ "$KIND" = "bash" ] && chmod +x "$SCRIPT_PATH"
