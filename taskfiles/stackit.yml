@@ -4,9 +4,9 @@ version: '3'
 
 tasks:
   list-firewall-rules:
-    desc: 'Listet alle Security Group Rules eines Projekts. Usage: task stackit:list-firewall-rules -- <project_id>'
+    desc: 'Listet alle Security Group Rules eines Projekts. Usage: task stackit:list-firewall-rules -- <project_id> [--json]'
     cmds:
-      - bash scripts/stackit/list_firewall_rules.sh {{.CLI_ARGS}}
+      - uv run python scripts/stackit/list_firewall_rules.py {{.CLI_ARGS}}
     preconditions:
       - sh: command -v stackit
         msg: "stackit-cli fehlt - siehe docs/REQUIREMENTS.md"
