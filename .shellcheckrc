@@ -1,0 +1,6 @@
+# Relative `source=` Direktiven werden relativ zum Skript-Verzeichnis aufgelöst
+# (sonst relativ zum aktuellen CWD - bricht je nach Aufrufort).
+source-path=SCRIPTDIR
+
+# Externe Sourcen erlauben (entspricht `shellcheck -x`).
+external-sources=true

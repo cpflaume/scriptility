@@ -1,0 +1,39 @@
+version: '3'
+
+# Bootstrap der lokalen Entwicklungsumgebung.
+# Ziel: nach `task setup` ist alles installiert, was zum Ausführen *und*
+# Entwickeln (Tests, Linter) gebraucht wird.
+
+tasks:
+  default:
+    desc: Komplettes Setup (python venv + pre-commit + .env)
+    cmds:
+      - task: python
+      - task: precommit
+      - task: env
+
+  python:
+    desc: Erstellt Python venv und installiert Dependencies via uv
+    cmds:
+      - command -v uv >/dev/null || pip install --user uv
+      - uv sync
+    sources:
+      - pyproject.toml
+      - uv.lock
+    generates:
+      - .venv/pyvenv.cfg
+
+  precommit:
+    desc: Installiert pre-commit Hooks
+    cmds:
+      - uv run pre-commit install
+    status:
+      - test -f .git/hooks/pre-commit
+
+  env:
+    desc: Legt .env aus .env.example an, falls noch nicht vorhanden
+    cmds:
+      - cp .env.example .env
+      - echo "→ .env angelegt. Bitte Werte ergänzen."
+    status:
+      - test -f .env

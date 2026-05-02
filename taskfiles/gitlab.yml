@@ -1,0 +1,23 @@
+version: '3'
+
+# GitLab-Operationen via API. Erwartet GITLAB_URL und GITLAB_TOKEN aus .env.
+
+tasks:
+  list-schedules:
+    desc: 'Listet alle Pipeline-Schedules in einer Group (rekursiv). Usage: task gitlab:list-schedules -- <group_id>'
+    summary: |
+      Beantwortet "Wo ist überall ein Weekly Schedule konfiguriert?".
+      Output ist Markdown-Tabelle (oder JSON mit --json).
+    cmds:
+      - uv run python scripts/gitlab/list_schedules.py {{.CLI_ARGS}}
+    preconditions:
+      - sh: '[ -n "$GITLAB_TOKEN" ]'
+        msg: "GITLAB_TOKEN nicht gesetzt - siehe .env.example"
+
+  list-projects:
+    desc: 'Listet alle Projekte einer Group. Usage: task gitlab:list-projects -- <group_id>'
+    cmds:
+      - uv run python scripts/gitlab/list_projects.py {{.CLI_ARGS}}
+    preconditions:
+      - sh: '[ -n "$GITLAB_TOKEN" ]'
+        msg: "GITLAB_TOKEN nicht gesetzt"

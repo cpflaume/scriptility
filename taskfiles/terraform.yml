@@ -1,0 +1,38 @@
+version: '3'
+
+# Terraform-Wrapper. ENV wählt das Verzeichnis unter infrastructure/terraform/envs.
+
+vars:
+  TF_DIR: 'infrastructure/terraform/envs/{{.ENV | default "example"}}'
+
+tasks:
+  init:
+    desc: 'terraform init für eine Umgebung. Usage: ENV=staging task terraform:init'
+    dir: '{{.TF_DIR}}'
+    cmds:
+      - terraform init -upgrade
+
+  plan:
+    desc: 'terraform plan. Usage: ENV=staging task terraform:plan'
+    dir: '{{.TF_DIR}}'
+    cmds:
+      - terraform plan -out=tfplan
+
+  apply:
+    desc: 'terraform apply (vorher plan!). Usage: ENV=staging task terraform:apply'
+    dir: '{{.TF_DIR}}'
+    cmds:
+      - terraform apply tfplan
+    prompt: "ENV={{.ENV}} - terraform apply wirklich ausführen?"
+
+  destroy:
+    desc: 'terraform destroy. Usage: ENV=staging task terraform:destroy'
+    dir: '{{.TF_DIR}}'
+    cmds:
+      - terraform destroy
+    prompt: "ENV={{.ENV}} - destroy wirklich ausführen? Das ist nicht reversibel."
+
+  bootstrap-env:
+    desc: 'Legt eine neue Terraform-Umgebung aus dem example-Template an. Usage: task terraform:bootstrap-env -- <name>'
+    cmds:
+      - bash scripts/lib/new_tf_env.sh {{.CLI_ARGS}}
