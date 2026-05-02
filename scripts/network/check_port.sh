@@ -31,6 +31,7 @@ require_cmd timeout
 
 # /dev/tcp ist eine bash-Built-in; HOST/PORT als Positional-Args durchreichen,
 # damit keine Shell-Interpolation in den `bash -c`-String stattfindet (Injection).
+# shellcheck disable=SC2016  # Expansion findet erst in der inneren Shell statt - genau so gewollt.
 if timeout "$TIMEOUT" bash -c 'exec 3<>/dev/tcp/"$1"/"$2"' _ "$HOST" "$PORT" 2>/dev/null; then
     log::info "${HOST}:${PORT} ist erreichbar (timeout=${TIMEOUT}s)"
     exit 0
