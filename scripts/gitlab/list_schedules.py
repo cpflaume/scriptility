@@ -3,7 +3,7 @@
 Beantwortet "Wo läuft überall ein Weekly Schedule?".
 
 Usage:
-    python list_schedules.py <group_id> [--json]
+    python list_schedules.py <group_id> [--json] [--concurrency N]
 
 ENV:
     GITLAB_URL   (default: https://gitlab.com)
@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import httpx
@@ -53,6 +54,7 @@ def parse_args(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("group_id", type=int)
     p.add_argument("--json", dest="json_output", action="store_true")
+    p.add_argument("--concurrency", type=int, default=8, help="Parallele Schedule-Requests (default: 8)")
     return p.parse_args(argv)
 
 
@@ -68,20 +70,24 @@ def main(argv=None) -> int:
     env = require_env("GITLAB_TOKEN")
     base = os.environ.get("GITLAB_URL", "https://gitlab.com").rstrip("/")
 
+    # httpx.Client ist thread-safe; ThreadPoolExecutor reicht fuer I/O-bound Calls.
     with httpx.Client(base_url=base, headers={"PRIVATE-TOKEN": env["GITLAB_TOKEN"]}, timeout=30.0) as client:
         projects = collect_projects(client, args.group_id)
         log.info("Gefundene Projekte: %d", len(projects))
+
         rows: list[dict] = []
-        for proj in projects:
-            for s in project_schedules(client, proj["id"]):
-                rows.append(
-                    {
-                        "project": proj["path_with_namespace"],
-                        "description": s["description"],
-                        "cron": s["cron"],
-                        "active": s["active"],
-                    }
-                )
+        with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
+            results = pool.map(lambda p: (p, project_schedules(client, p["id"])), projects)
+            for proj, schedules in results:
+                for s in schedules:
+                    rows.append(
+                        {
+                            "project": proj["path_with_namespace"],
+                            "description": s["description"],
+                            "cron": s["cron"],
+                            "active": s["active"],
+                        }
+                    )
 
     if not rows:
         log.warning("Keine Schedules gefunden in Group %s", args.group_id)
