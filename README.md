@@ -49,3 +49,18 @@ templates/      # Vorlagen für `task dev:new`
 
 Neues Skript? `task dev:new -- bash <namespace> <name>` und dann CONTRIBUTING.md
 befolgen. CI sorgt dafür, dass nichts ungetestet hereinkommt.
+
+## AI-Assistenten (Claude Code, Continue, Roo Code, …)
+
+Der gesamte Projekt-Kontext für AI-Tools steht in [`AGENTS.md`](AGENTS.md).
+Tool-spezifische Pfade sind Symlinks darauf:
+
+| Tool | Pfad |
+|---|---|
+| Claude Code | `CLAUDE.md` → `AGENTS.md` |
+| Continue (VSCode) | `.continue/rules/project.md` → `AGENTS.md` |
+| Roo Code (VSCode) | `.roo/rules/project.md` → `AGENTS.md` |
+
+Editiere **nur `AGENTS.md`**; die Symlinks aktualisieren sich automatisch.
+Auf Windows muss `git config --global core.symlinks true` gesetzt sein
+(einmalig pro Entwickler).
