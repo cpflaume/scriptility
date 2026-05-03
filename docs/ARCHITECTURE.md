@@ -5,12 +5,16 @@
 ```
 Taskfile (Entry Point)        ← User sieht NUR Task-Befehle
   ↓
-scripts/<ns>/...              ← bash + python, eine Aufgabe pro Datei
+scripts/<name>.{sh,py}        ← bash + python, eine Aufgabe pro Datei (flach)
   ↓
-scripts/lib                   ← Logging, ENV-Checks, Exit-Codes
+scripts/lib                   ← Logging, ENV-Checks, Exit-Codes, WinRM, Generator
   ↓
 CLI-Tools (jq, terraform, …)  ← externe Werkzeuge
 ```
+
+Hinzufügen eines Skripts: `task new -- <bash|py> <name>` legt Skript + Test
+an und registriert den Task im AUTO-GENERATED-Block in `Taskfile.yml`. Kein
+Namespace-Layout, kein manueller Taskfile-Edit.
 
 ## Bash vs. Python
 
@@ -31,7 +35,7 @@ Faustregel: zweites `jq` im bash-Skript → Python.
 
 ## Wachstum
 
-- Namespace > 15 Tasks → splitten via weitere `includes` (z. B.
-  `gitlab/projects.yml` + `gitlab/pipelines.yml`).
+- Bei Namens-Konflikten plattformspezifisch präfixen (`list_linux_users.sh`
+  vs. `list_windows_users.py`).
 - Mehrfach genutzte Helper wandern nach `scripts/lib/`.
 - Tests sind nicht verhandelbar.

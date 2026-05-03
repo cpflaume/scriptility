@@ -7,8 +7,8 @@
 
 set -euo pipefail
 
-# shellcheck source=../lib/common.sh
-source "$(dirname "$0")/../lib/common.sh"
+# shellcheck source=lib/common.sh
+source "$(dirname "$0")/lib/common.sh"
 
 usage() {
     sed -n '/^# Usage:/,/^# Beispiel/p' "$0" | sed 's/^# \{0,1\}//'

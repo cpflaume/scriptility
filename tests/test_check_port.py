@@ -1,4 +1,4 @@
-"""Tests für scripts/network/check_port.py"""
+"""Tests für scripts/check_port.py"""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from contextlib import contextmanager
 
 import pytest
 
-from scripts.network.check_port import check_port, main
+from scripts.check_port import check_port, main
 
 
 @contextmanager

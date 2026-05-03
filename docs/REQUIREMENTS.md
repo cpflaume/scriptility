@@ -10,7 +10,7 @@
 | `uv` | Python-Deps | `pip install --user uv` | `brew install uv` |
 | `git` | — | `apt install git` | vorhanden |
 
-## Empfohlen / abhängig vom Namespace
+## Empfohlen / abhängig vom Skript
 
 | Tool | Wofür | Install |
 |---|---|---|

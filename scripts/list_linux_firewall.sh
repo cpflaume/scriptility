@@ -2,8 +2,8 @@
 # list_firewall.sh - Zeigt Firewall-Regeln (nftables bevorzugt, sonst iptables).
 # Usage: list_firewall.sh <host>
 set -euo pipefail
-# shellcheck source=../lib/common.sh
-source "$(dirname "$0")/../lib/common.sh"
+# shellcheck source=lib/common.sh
+source "$(dirname "$0")/lib/common.sh"
 
 [ $# -eq 1 ] || die "Usage: $0 <host>" 2
 require_cmd ssh

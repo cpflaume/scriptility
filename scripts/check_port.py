@@ -14,7 +14,7 @@ import socket
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[0]))
 from lib.common import EXIT_FAIL, EXIT_OK, emit, get_logger  # noqa: E402
 
 log = get_logger("check_port")

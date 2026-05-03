@@ -9,8 +9,13 @@ vars:
 
 tasks:
   lint:
-    desc: Führt alle Linter aus (shellcheck, ruff, ansible-lint, terraform fmt)
-    deps: [lint:sh, lint:py, lint:tf, lint:ansible]
+    desc: Führt alle Linter aus (shellcheck, ruff, ansible-lint, terraform fmt, env)
+    deps: [lint:sh, lint:py, lint:tf, lint:ansible, lint:env]
+
+  lint:env:
+    desc: Prüft, dass jede require_env-Variable in .env.example dokumentiert ist
+    cmds:
+      - uv run python scripts/lib/lint_env.py
 
   lint:sh:
     desc: Shellcheck über alle bash-Skripte
@@ -61,9 +66,14 @@ tasks:
       - uv run pytest tests -q
 
   new:
-    desc: 'Generiert neues Skript inkl. Test+Task. Usage: task dev:new -- <bash|py> <namespace> <skript-name>'
+    desc: 'Alias für `task new` (Root). Usage: task dev:new -- <bash|py> <name>'
     cmds:
       - bash scripts/lib/new_script.sh {{.CLI_ARGS}}
+
+  sync-tasks:
+    desc: Regeneriert den AUTO-GENERATED-Block in Taskfile.yml aus scripts/*.{sh,py}
+    cmds:
+      - uv run python scripts/lib/sync_tasks.py
 
   format:
     desc: Auto-Format Python (ruff) und Terraform

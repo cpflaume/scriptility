@@ -8,7 +8,8 @@ DevOps-Skripte fürs Team — einheitlich aufrufbar via Taskfile, getestet, revi
 git clone <repo> && cd scriptility
 task setup              # einmalig: venv, pre-commit, .env
 task --list-all         # alle verfügbaren Skripte
-task network:check-port -- 10.0.0.1 443
+task check-port -- 10.0.0.1 443
+task new -- bash my-new-script   # neues Skript anlegen (Skript + Test + Task)
 ```
 
 ## Doku

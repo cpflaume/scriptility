@@ -3,8 +3,8 @@
 # Usage: resolve.sh <hostname> [type ...]
 #   default: A AAAA CNAME MX TXT NS
 set -euo pipefail
-# shellcheck source=../lib/common.sh
-source "$(dirname "$0")/../lib/common.sh"
+# shellcheck source=lib/common.sh
+source "$(dirname "$0")/lib/common.sh"
 
 [ $# -ge 1 ] || die "Usage: $0 <hostname> [type ...]" 2
 require_cmd dig

@@ -13,7 +13,7 @@ from pathlib import Path
 
 import httpx
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[0]))
 from lib.common import EXIT_OK, emit, get_logger, require_env  # noqa: E402
 
 log = get_logger("gitlab.projects")
