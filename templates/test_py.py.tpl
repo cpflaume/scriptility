@@ -1,4 +1,4 @@
-"""Tests für scripts/{{NS}}/{{NAME}}.py"""
+"""Tests für scripts/{{NAME}}.py"""
 
 import subprocess
 import sys
@@ -6,7 +6,7 @@ import sys
 
 def test_help_runs():
     result = subprocess.run(
-        [sys.executable, "scripts/{{NS}}/{{NAME}}.py", "--help"],
+        [sys.executable, "scripts/{{NAME}}.py", "--help"],
         capture_output=True,
         text=True,
         check=False,

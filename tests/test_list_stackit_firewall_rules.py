@@ -1,4 +1,4 @@
-"""Tests für scripts/stackit/list_firewall_rules.py"""
+"""Tests für scripts/list_stackit_firewall_rules.py"""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from scripts.stackit.list_firewall_rules import main
+from scripts.list_stackit_firewall_rules import main
 
 
 def _fake_stackit(args, **_kwargs):

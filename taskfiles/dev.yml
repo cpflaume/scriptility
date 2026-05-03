@@ -61,9 +61,14 @@ tasks:
       - uv run pytest tests -q
 
   new:
-    desc: 'Generiert neues Skript inkl. Test+Task. Usage: task dev:new -- <bash|py> <namespace> <skript-name>'
+    desc: 'Alias für `task new` (Root). Usage: task dev:new -- <bash|py> <name>'
     cmds:
       - bash scripts/lib/new_script.sh {{.CLI_ARGS}}
+
+  sync-tasks:
+    desc: Regeneriert den AUTO-GENERATED-Block in Taskfile.yml aus scripts/*.{sh,py}
+    cmds:
+      - uv run python scripts/lib/sync_tasks.py
 
   format:
     desc: Auto-Format Python (ruff) und Terraform

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Gemeinsame Helfer für bash-Skripte.
-# Einbinden via:  source "$(dirname "$0")/../lib/common.sh"
+# Einbinden via:  source "$(dirname "$0")/lib/common.sh"
 
 set -euo pipefail
 

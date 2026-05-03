@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
-# Tests für {{NS}}/{{NAME}}.sh
+# Tests für {{NAME}}.sh
 
 setup() {
-    SCRIPT="$BATS_TEST_DIRNAME/../../scripts/{{NS}}/{{NAME}}.sh"
+    SCRIPT="$BATS_TEST_DIRNAME/../scripts/{{NAME}}.sh"
 }
 
 @test "{{NAME}}: zeigt Usage bei fehlenden Argumenten" {

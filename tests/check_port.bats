@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
-# Tests für scripts/network/check_port.sh
+# Tests für scripts/check_port.sh
 
 setup() {
-    SCRIPT="$BATS_TEST_DIRNAME/../../scripts/network/check_port.sh"
+    SCRIPT="$BATS_TEST_DIRNAME/../scripts/check_port.sh"
 }
 
 @test "check_port: usage bei zu wenig args" {
