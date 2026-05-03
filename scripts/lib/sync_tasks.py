@@ -69,7 +69,7 @@ def render_block(scripts: list[tuple[str, str, str]], descs: dict[str, str]) -> 
         desc = descs.get(task_name, f"'TODO: Beschreibung. Usage: task {task_name} -- <args>'")
         lines.append(f"  {task_name}:")
         lines.append(f"    desc: {desc}")
-        lines.append(f"    cmds: [{runner} {script_path} {{{{.CLI_ARGS}}}}]")
+        lines.append(f"    cmds: ['{runner} {script_path} {{{{.CLI_ARGS}}}}']")
         lines.append("")
     if lines and lines[-1] == "":
         lines.pop()

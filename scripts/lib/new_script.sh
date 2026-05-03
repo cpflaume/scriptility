@@ -71,7 +71,7 @@ trap 'rm -f "$TMP_BLOCK"' EXIT
 {
     printf '  %s:\n' "$TASK_NAME"
     printf "    desc: 'TODO: Beschreibung. Usage: task %s -- <args>'\n" "$TASK_NAME"
-    printf '    cmds: [%s scripts/%s.%s {{.CLI_ARGS}}]\n' "$RUNNER" "$SAFE_NAME" "$EXT"
+    printf "    cmds: ['%s scripts/%s.%s {{.CLI_ARGS}}']\n" "$RUNNER" "$SAFE_NAME" "$EXT"
 } > "$TMP_BLOCK"
 
 TMP_OUT="$(mktemp)"
