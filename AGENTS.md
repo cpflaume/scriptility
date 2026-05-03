@@ -56,6 +56,15 @@ I/O-Konventionen:
 - Python-Skripte bieten `--json` für maschinenlesbare Ausgabe.
 - Mutierende Aktionen brauchen `--apply` (Skript) oder `prompt:` (Taskfile).
 
+**ENV-Variablen — eine Quelle der Wahrheit**: `.env.example` ist die kanonische
+Liste aller ENV-Variablen. Vor jedem neuen `require_env(...)`/`require_env VAR`
+prüfen, ob es den Namen schon gibt — gleicher Zweck, gleicher Name (z. B. ein
+GitLab-PAT heißt **immer** `GITLAB_TOKEN`, nicht `GITLAB_PAT` oder `GL_TOKEN`).
+Neue ENVs gehören in `.env.example` **und** (bei Credentials) in die
+Credentials-Tabelle in `docs/REQUIREMENTS.md`. `task dev:lint:env` (Teil von
+`task dev:lint`) bricht ab, wenn ein Skript eine ENV referenziert, die nicht in
+`.env.example` steht.
+
 **Faustregel bash vs python**: zweites `jq` oder echte JSON-Logik im bash-Skript →
 Python.
 

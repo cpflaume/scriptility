@@ -9,8 +9,13 @@ vars:
 
 tasks:
   lint:
-    desc: Führt alle Linter aus (shellcheck, ruff, ansible-lint, terraform fmt)
-    deps: [lint:sh, lint:py, lint:tf, lint:ansible]
+    desc: Führt alle Linter aus (shellcheck, ruff, ansible-lint, terraform fmt, env)
+    deps: [lint:sh, lint:py, lint:tf, lint:ansible, lint:env]
+
+  lint:env:
+    desc: Prüft, dass jede require_env-Variable in .env.example dokumentiert ist
+    cmds:
+      - uv run python scripts/lib/lint_env.py
 
   lint:sh:
     desc: Shellcheck über alle bash-Skripte
