@@ -17,8 +17,6 @@ on:
     # Mo + Do, 05:00 UTC. Bewusst zweimal pro Woche, damit Sicherheits-Updates
     # nicht eine Woche liegen bleiben.
     - cron: '0 5 * * 1,4'
-  push:
-    branches: ["main"]
   pull_request:
     types: [closed]
     branches: ["main"]
