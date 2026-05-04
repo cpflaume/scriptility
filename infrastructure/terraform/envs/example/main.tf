@@ -6,7 +6,7 @@ terraform {
   required_providers {
     stackit = {
       source  = "stackitcloud/stackit"
-      version = "~> 0.40"
+      version = "~> 0.94"
     }
   }
   # Backend bewusst auskommentiert - pro Umgebung im backend.tf konfigurieren.
