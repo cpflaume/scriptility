@@ -1,5 +1,5 @@
-# GitLab CI - läuft Lint + Test auf jedem MR.
-stages: [lint, test]
+# GitLab CI - läuft Lint + Test auf jedem MR; Renovate via Scheduled Pipeline.
+stages: [lint, test, renovate]
 
 default:
   image: ghcr.io/astral-sh/uv:python3.12-bookworm
@@ -13,9 +13,40 @@ lint:
   script:
     - task dev:lint:sh
     - task dev:lint:py
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $RENOVATE == "true"
+      when: never
+    - when: on_success
 
 test:
   stage: test
   script:
     - task dev:test:bash
     - task dev:test:py
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $RENOVATE == "true"
+      when: never
+    - when: on_success
+
+# Renovate läuft als Scheduled Pipeline (CI/CD > Schedules) mit der Variable
+# RENOVATE=true. Voraussetzung: CI/CD-Variable RENOVATE_TOKEN (GitLab PAT mit
+# api-Scope, masked + protected). Manuelle Ausführung via "Run pipeline" mit
+# RENOVATE=true ebenfalls möglich.
+renovate:
+  stage: renovate
+  image:
+    name: renovate/renovate:latest
+    entrypoint: [""]
+  before_script: []
+  variables:
+    LOG_LEVEL: info
+    RENOVATE_PLATFORM: gitlab
+    RENOVATE_ENDPOINT: $CI_API_V4_URL
+    RENOVATE_AUTODISCOVER: "false"
+    RENOVATE_REPOSITORIES: '["$CI_PROJECT_PATH"]'
+    RENOVATE_GIT_AUTHOR: "Renovate Bot <renovate@$CI_SERVER_HOST>"
+  script:
+    - renovate
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $RENOVATE == "true"
+    - if: $CI_PIPELINE_SOURCE == "web" && $RENOVATE == "true"
