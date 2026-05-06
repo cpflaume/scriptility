@@ -41,3 +41,18 @@ Gibt eine Übersicht aus, was vorhanden / was fehlt.
 | `WIN_USER` / `WIN_PASSWORD` | WinRM | Domänen-Account mit Remoting |
 
 Trag die Werte in `.env` ein (lokal) bzw. in der CI als geschützte Variablen.
+
+## Renovate-Pipeline: Netzwerk-Ziele
+
+Egress (HTTPS/443), den der Runner für den `renovate`-Job erreichen muss:
+
+| Domain | Wofür |
+|---|---|
+| `<dein-gitlab-host>` (`$CI_SERVER_URL`) | Repo klonen, MRs/Issues schreiben |
+| `registry-1.docker.io`, `auth.docker.io` | Pull `renovate/renovate`-Image |
+| `app.renovatebot.com` | Merge-Confidence- / Release-Daten |
+| `pypi.org`, `files.pythonhosted.org` | Python-Deps (`pyproject.toml`, `uv.lock`) |
+| `api.github.com`, `github.com`, `objects.githubusercontent.com`, `raw.githubusercontent.com` | GitHub-Actions-Tags + Changelogs |
+| `ghcr.io`, `pkg-containers.githubusercontent.com` | Container-Images aus GHCR (z. B. `astral-sh/uv`) |
+| `registry.terraform.io`, `releases.hashicorp.com` | Terraform-Provider/-Module |
+| `galaxy.ansible.com` | Ansible-Collections/-Roles |
