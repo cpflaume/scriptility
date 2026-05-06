@@ -1,6 +1,6 @@
 # Dev Container für scriptility.
 # Liefert die in docs/REQUIREMENTS.md aufgeführten Pflicht- und empfohlenen Tools.
-FROM mcr.microsoft.com/devcontainers/python:1-3.12-bookworm
+FROM mcr.microsoft.com/devcontainers/python:3-3.12-bookworm
 
 ARG TARGETARCH=amd64
 ARG TASK_VERSION=v3.39.2
