@@ -32,6 +32,9 @@ test:
 # RENOVATE=true. Voraussetzung: CI/CD-Variable RENOVATE_TOKEN (GitLab PAT mit
 # api-Scope, masked + protected). Manuelle Ausführung via "Run pipeline" mit
 # RENOVATE=true ebenfalls möglich.
+#
+# Network-Egress des Runners: siehe docs/REQUIREMENTS.md
+# (Abschnitt "Renovate-Pipeline: Netzwerk-Ziele").
 renovate:
   stage: renovate
   image:
