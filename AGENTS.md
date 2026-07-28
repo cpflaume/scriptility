@@ -19,6 +19,7 @@ gekapselt. Flacher Aufbau, keine Namespaces — ein Team, ein Pool von Skripten.
 scripts/<name>.{sh,py}            # alle Skripte direkt hier — keine Unterordner
 scripts/lib/                      # einziger erlaubter Unterordner: geteilte Helfer
   common.sh / common.py           # Logging, Exit-Codes, Env-Checks
+  stackit.py                      # STACKIT-CLI, nur lesend (Read-Only-Guard)
   winrm.py                        # WinRM-Helper für Windows-Skripte
   doctor.sh                       # Tool-Verifikation
   new_script.sh                   # Generator (von `task new` aufgerufen)

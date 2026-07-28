@@ -13,25 +13,14 @@ ENV:
 from __future__ import annotations
 
 import argparse
-import json
-import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[0]))
-from lib.common import EXIT_FAIL, EXIT_OK, emit, get_logger, require_env  # noqa: E402
+from lib.common import EXIT_OK, emit, get_logger, require_env  # noqa: E402
+from lib.stackit import run_json  # noqa: E402
 
 log = get_logger("stackit.firewall")
-
-
-def stackit_json(args: list[str]) -> list | dict:
-    """stackit-cli aufrufen und JSON parsen."""
-    cmd = ["stackit", *args, "--output-format", "json"]
-    res = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    if res.returncode != 0:
-        log.error("stackit %s fehlgeschlagen: %s", " ".join(args), res.stderr.strip())
-        sys.exit(EXIT_FAIL)
-    return json.loads(res.stdout or "[]")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -53,10 +42,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     require_env("STACKIT_SERVICE_ACCOUNT_TOKEN")
 
-    groups = stackit_json(["security-group", "list", "--project-id", args.project_id])
+    groups = run_json(["security-group", "list", "--project-id", args.project_id])
     rows: list[dict] = []
     for g in groups:
-        rules = stackit_json(
+        rules = run_json(
             ["security-group", "rule", "list", "--project-id", args.project_id, "--security-group-id", g["id"]]
         )
         for rule in rules:
