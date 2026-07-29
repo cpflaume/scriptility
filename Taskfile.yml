@@ -40,6 +40,10 @@ tasks:
     desc: 'Python-Variante mit JSON-Output. Usage: task check-port-py -- --host h --port p [--json]'
     cmds: ['uv run python scripts/check_port.py {{.CLI_ARGS}}']
 
+  check-stackit-port:
+    desc: 'Prüft, ob ein Port per STACKIT-Security-Group freigeschaltet ist. Usage: task check-stackit-port -- --project-id <id> --port <p> [--protocol tcp] [--json]'
+    cmds: ['uv run python scripts/check_stackit_port.py {{.CLI_ARGS}}']
+
   cron-overview:
     desc: 'Sammelt alle Cronjobs (system + per-user). Usage: task cron-overview -- <host>'
     cmds: ['bash scripts/cron_overview.sh {{.CLI_ARGS}}']
@@ -60,13 +64,17 @@ tasks:
     desc: 'Listet lokale Benutzer eines Linux-Hosts. Usage: task list-linux-users -- <host>'
     cmds: ['bash scripts/list_linux_users.sh {{.CLI_ARGS}}']
 
+  list-stackit-all-servers:
+    desc: 'Server über alle STACKIT-Projekte als CSV (OS/Image, Flavor, IPs, State). Usage: task list-stackit-all-servers -- [--json]'
+    cmds: ['uv run python scripts/list_stackit_all_servers.py {{.CLI_ARGS}}']
+
   list-stackit-firewall-rules:
     desc: 'Listet Security-Group-Regeln eines STACKIT-Projekts. Usage: task list-stackit-firewall-rules -- <project_id> [--json]'
     cmds: ['uv run python scripts/list_stackit_firewall_rules.py {{.CLI_ARGS}}']
 
   list-stackit-servers:
-    desc: 'Listet alle Server eines STACKIT-Projekts mit Status. Usage: task list-stackit-servers -- <project_id>'
-    cmds: ['bash scripts/list_stackit_servers.sh {{.CLI_ARGS}}']
+    desc: 'Server eines STACKIT-Projekts inkl. OS/Image, Flavor (vCPU/RAM), IPs & State. Usage: task list-stackit-servers -- <project_id> [--json]'
+    cmds: ['uv run python scripts/list_stackit_servers.py {{.CLI_ARGS}}']
 
   list-windows-services:
     desc: 'Listet alle laufenden Windows-Services. Usage: task list-windows-services -- --host <host> [--json]'
