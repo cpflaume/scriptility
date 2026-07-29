@@ -91,4 +91,7 @@ tasks:
   windows-scheduled-tasks:
     desc: 'Listet Windows Scheduled Tasks. Usage: task windows-scheduled-tasks -- --host <host> [--json]'
     cmds: ['uv run python scripts/windows_scheduled_tasks.py {{.CLI_ARGS}}']
+  ad-app-onboarding:
+    desc: 'Liest AD-Onboarding-Voraussetzungen (Konto/SPNs/Hostnamen/Gruppen). Usage: task ad-app-onboarding -- --host <adhost> --account <sam> [--group NAME ...] [--group-filter <pat>] [--spec <datei.json>] [--json]'
+    cmds: ['uv run python scripts/ad_app_onboarding.py {{.CLI_ARGS}}']
   # <<< END AUTO-GENERATED <<<
