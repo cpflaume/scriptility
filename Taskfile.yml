@@ -73,8 +73,8 @@ tasks:
     cmds: ['uv run python scripts/list_stackit_firewall_rules.py {{.CLI_ARGS}}']
 
   list-stackit-servers:
-    desc: 'Listet alle Server eines STACKIT-Projekts mit Status. Usage: task list-stackit-servers -- <project_id>'
-    cmds: ['bash scripts/list_stackit_servers.sh {{.CLI_ARGS}}']
+    desc: 'Listet alle Server eines STACKIT-Projekts mit Status. Usage: task list-stackit-servers -- <project_id> [--json]'
+    cmds: ['uv run python scripts/list_stackit_servers.py {{.CLI_ARGS}}']
 
   list-windows-services:
     desc: 'Listet alle laufenden Windows-Services. Usage: task list-windows-services -- --host <host> [--json]'
