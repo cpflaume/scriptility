@@ -3,7 +3,9 @@
 Vor dem Onboarding einer Applikation muessen deren Service-/gMSA-Konto samt
 SPNs (aus denen die Hostnamen abgeleitet werden) sowie die Zugriffs-Gruppen
 inkl. ihrer Mitglieder existieren. Dieses Skript liest diesen Ist-Zustand ueber
-PowerShell (Get-AD*) via WinRM.
+PowerShell (Get-AD*) via WinRM. Die eigentlichen Abfragen liegen als
+PowerShell-Templates in scripts/lib/ps/ (*.ps1); Python belegt nur die
+Eingabe-Variablen vor und wertet das JSON aus.
 
 Modi:
   - Standard: reiner Dump des Ist-Zustands (Konto, Hostnamen, Gruppen+Mitglieder).
@@ -43,10 +45,37 @@ from lib.winrm import run_ps  # noqa: E402
 
 log = get_logger("ad.onboarding")
 
+# Die eigentlichen Get-AD*-Abfragen liegen als PowerShell-Templates daneben.
+# Python belegt nur die Eingabe-Variablen (sicher gequotet) vor und laedt das Template.
+PS_DIR = Path(__file__).resolve().parent / "lib" / "ps"
+
 
 def _ps_quote(value: str) -> str:
     """Escaped einen String fuer ein einfach-gequotetes PowerShell-Literal."""
     return value.replace("'", "''")
+
+
+def _ps_assign(name: str, value: str) -> str:
+    """PowerShell-Zuweisung eines String-Skalars mit sicherem Quoting."""
+    return f"${name} = '{_ps_quote(value)}'"
+
+
+def _ps_assign_array(name: str, values: list[str]) -> str:
+    """PowerShell-Zuweisung eines String-Arrays mit sicherem Quoting."""
+    items = ", ".join(f"'{_ps_quote(v)}'" for v in values)
+    return f"${name} = @({items})"
+
+
+def _run_ps_json(host: str, header: str, template: str, default):
+    """Belegt Eingabe-Variablen (header) vor, laedt+fuehrt das Template aus,
+    und parst dessen JSON-stdout (leere Ausgabe -> default)."""
+    raw = run_ps(host, f"{header}\n{template}")
+    return json.loads(raw) if raw.strip() else default
+
+
+def _load_ps(name: str) -> str:
+    """Laedt ein PowerShell-Template aus scripts/lib/ps/."""
+    return (PS_DIR / name).read_text(encoding="utf-8")
 
 
 def _cn_from_dn(dn: str) -> str:
@@ -76,27 +105,8 @@ def hostnames_from_spns(spns: list[str]) -> list[str]:
 
 def fetch_account(host: str, identity: str) -> dict:
     """Liest das Service-/gMSA- bzw. User-Konto der Applikation via WinRM."""
-    ident = _ps_quote(identity)
-    ps = f"""Import-Module ActiveDirectory
-$id = '{ident}'
-$props = 'ServicePrincipalNames','Enabled','MemberOf'
-$type = 'gMSA'
-$a = Get-ADServiceAccount -Identity $id -Properties $props -ErrorAction SilentlyContinue
-if (-not $a) {{
-    $a = Get-ADUser -Identity $id -Properties $props -ErrorAction SilentlyContinue
-    $type = 'user'
-}}
-if (-not $a) {{ Write-Output '{{}}'; exit 0 }}
-[pscustomobject]@{{
-    exists = $true
-    type = $type
-    enabled = [bool]$a.Enabled
-    distinguishedName = $a.DistinguishedName
-    servicePrincipalNames = @($a.ServicePrincipalNames)
-    memberOf = @($a.MemberOf)
-}} | ConvertTo-Json -Depth 4"""
-    raw = run_ps(host, ps)
-    data = json.loads(raw) if raw.strip() else {}
+    header = _ps_assign("Id", identity)
+    data = _run_ps_json(host, header, _load_ps("ad_account.ps1"), default={})
     if not data or not data.get("exists"):
         return {
             "identity": identity,
@@ -117,28 +127,8 @@ def fetch_groups(host: str, names: list[str]) -> list[dict]:
     """Liest Gruppen inkl. rekursiver Mitglieder via WinRM."""
     if not names:
         return []
-    ps_array = ", ".join(f"'{_ps_quote(n)}'" for n in names)
-    ps = f"""Import-Module ActiveDirectory
-$names = @({ps_array})
-$out = foreach ($n in $names) {{
-    $g = Get-ADGroup -Identity $n -ErrorAction SilentlyContinue
-    if (-not $g) {{
-        [pscustomobject]@{{ name = $n; exists = $false; distinguishedName = $null; members = @() }}
-        continue
-    }}
-    $members = foreach ($m in (Get-ADGroupMember -Identity $g -Recursive -ErrorAction SilentlyContinue)) {{
-        [pscustomobject]@{{ name = $m.SamAccountName; objectClass = $m.objectClass }}
-    }}
-    [pscustomobject]@{{
-        name = $g.Name
-        exists = $true
-        distinguishedName = $g.DistinguishedName
-        members = @($members)
-    }}
-}}
-@($out) | ConvertTo-Json -Depth 5"""
-    raw = run_ps(host, ps)
-    data = json.loads(raw) if raw.strip() else []
+    header = _ps_assign_array("Names", names)
+    data = _run_ps_json(host, header, _load_ps("ad_groups.ps1"), default=[])
     if isinstance(data, dict):
         data = [data]
     for g in data:
@@ -156,13 +146,8 @@ def load_spec(path: str) -> dict:
 
 def _discover_groups(host: str, pattern: str) -> list[str]:
     """Findet Gruppennamen ueber einen AD-Name-Filter (Get-ADGroup -Filter)."""
-    pat = _ps_quote(pattern)
-    ps = (
-        "Import-Module ActiveDirectory\n"
-        f"@(Get-ADGroup -Filter \"Name -like '{pat}'\" | Select-Object -ExpandProperty Name) | ConvertTo-Json"
-    )
-    raw = run_ps(host, ps)
-    data = json.loads(raw) if raw.strip() else []
+    header = _ps_assign("Pattern", pattern)
+    data = _run_ps_json(host, header, _load_ps("ad_groups_by_filter.ps1"), default=[])
     if isinstance(data, str):
         data = [data]
     return list(data)

@@ -6,7 +6,12 @@ import json
 
 import pytest
 
-from scripts.ad_app_onboarding import evaluate, hostnames_from_spns, main
+from scripts.ad_app_onboarding import (
+    _ps_assign_array,
+    evaluate,
+    hostnames_from_spns,
+    main,
+)
 
 # --- Kanonische Fake-WinRM-Antworten ---------------------------------------
 
@@ -61,6 +66,11 @@ def test_hostnames_from_spns_empty():
     assert hostnames_from_spns([]) == []
 
 
+def test_ps_assign_array_quotes_and_escapes():
+    # Einfache Anfuehrungszeichen werden verdoppelt (PowerShell-Escaping).
+    assert _ps_assign_array("Names", ["a", "o'brien"]) == "$Names = @('a', 'o''brien')"
+
+
 # --- Aufruf-Fehler ----------------------------------------------------------
 
 
@@ -92,6 +102,21 @@ def test_dump_account_missing(monkeypatch, capsys):
     out = json.loads(capsys.readouterr().out)
     assert out["account"]["exists"] is False
     assert out["hostnames"] == []
+
+
+def test_group_filter_discovers_and_reads(monkeypatch, capsys):
+    def side_effect(host, script):  # noqa: ARG001
+        if "Get-ADServiceAccount" in script:
+            return ACCOUNT_JSON
+        if "-Filter" in script:  # ad_groups_by_filter.ps1
+            return json.dumps(["App-XYZ-Users"])
+        return GROUPS_JSON  # ad_groups.ps1
+
+    monkeypatch.setattr("scripts.ad_app_onboarding.run_ps", side_effect)
+    rc = main(["--host", "adhost", "--account", "svc-app01", "--group-filter", "App-XYZ-*", "--json"])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert [g["name"] for g in out["groups"]] == ["App-XYZ-Users"]
 
 
 # --- Spec-Modus (pass/fail) -------------------------------------------------
