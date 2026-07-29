@@ -1,11 +1,10 @@
 """Zentrale, **nur lesende** Anbindung an die STACKIT-CLI.
 
 Alle Python-Skripte, die stackit aufrufen, gehen über diesen Helfer. Er setzt
-eine Read-Only-Garantie durch: der Command-Pfad (alles bis zum ersten Flag)
-muss ein lesendes Verb (``list``/``describe``) enthalten und darf kein
-mutierendes Verb (``create``/``update``/``delete``/``start``/...) enthalten.
-Jeder Verstoß wird abgelehnt, *bevor* stackit gestartet wird — so kann kein
-Skript versehentlich Infrastruktur verändern.
+eine Read-Only-Garantie durch (Default-Deny): das **erste bekannte Verb** im
+Command-Pfad muss ein lesendes Verb (``list``/``describe``) sein — sonst wird
+der Aufruf abgelehnt, *bevor* stackit gestartet wird. So kann kein Skript
+versehentlich Infrastruktur verändern.
 
 Neben dem Guard bündelt das Modul die (ebenfalls rein lesenden) IaaS-Lookups,
 die mehrere Server-Skripte teilen: Image-/OS-Details, Flavor (vCPU/RAM) und
@@ -27,11 +26,18 @@ from lib.common import EXIT_FAIL, get_logger  # noqa: E402
 
 log = get_logger("stackit")
 
-# Lesende Verben — mindestens eines muss im Command-Pfad vorkommen.
+# Lesende Verben. Gegen die STACKIT-CLI-Referenz geprüft: für Lese-Operationen
+# kennt die CLI genau `list` und `describe`. (Einzelfälle wie `console`/`log`
+# werden bewusst mit-blockiert — sie sind für dieses Projekt nicht nötig, und
+# Über-Blocken ist die sichere Richtung.)
 READ_VERBS = frozenset({"list", "describe"})
 
-# Mutierende Verben — kommt eines davon vor, wird hart abgelehnt (Defense in
-# Depth, auch falls versehentlich mit einem Read-Verb kombiniert).
+# Bekannte mutierende Verben. Diese Liste ist absichtlich NICHT die
+# Sicherheitsgarantie — die liefert der Default-Deny in assert_read_only (ohne
+# Lese-Verb wird ohnehin blockiert). Sie ist ein Tripwire: sie sorgt dafür,
+# dass ein mutierendes Verb auch dann als *Aktion* erkannt wird, wenn danach
+# ein positionales Argument folgt, das zufällig wie ein Lese-Verb aussieht
+# (z. B. ein Server namens "list" bei `server create list`). Nicht erschöpfend.
 MUTATING_VERBS = frozenset(
     {
         "create",
@@ -53,14 +59,28 @@ MUTATING_VERBS = frozenset(
         "resize",
         "rescue",
         "unrescue",
+        "restore",
         "reset",
         "rotate",
+        "regenerate",
+        "renew",
         "generate",
+        "run",
+        "execute",
+        "trigger",
+        "apply",
+        "revoke",
         "import",
         "export",
         "upload",
         "activate",
         "deactivate",
+        "scale",
+        "pause",
+        "resume",
+        "promote",
+        "failover",
+        "clone",
         "cancel",
         "confirm",
         "move",
@@ -68,7 +88,10 @@ MUTATING_VERBS = frozenset(
     }
 )
 
-# Sentinel: run_json soll bei Fehler abbrechen (statt einen Default zu liefern).
+_KNOWN_VERBS = READ_VERBS | MUTATING_VERBS
+
+# Sentinel: run_stackit_query soll bei Fehler abbrechen, statt einen Default
+# zurückzugeben.
 _RAISE = object()
 
 
@@ -92,29 +115,35 @@ def _command_tokens(args: list[str]) -> list[str]:
 
 
 def assert_read_only(args: list[str]) -> None:
-    """Wirft MutatingCommandError, wenn ``args`` kein rein lesender Command ist."""
+    """Erlaubt nur lesende stackit-Commands; wirft sonst MutatingCommandError.
+
+    Das **erste bekannte Verb** im Command-Pfad bestimmt die Aktion. Ist es kein
+    Lese-Verb — oder kommt gar kein bekanntes Verb vor — wird abgelehnt. So
+    entscheidet die Aktion, nicht ein nachgestelltes positionales Argument, das
+    wie ``list`` aussieht.
+    """
     tokens = _command_tokens(args)
-    if any(t in MUTATING_VERBS for t in tokens):
-        raise MutatingCommandError(
-            f"Blockiert: 'stackit {' '.join(args)}' enthält ein mutierendes Verb. "
-            "Dieses Projekt darf STACKIT nur lesen."
-        )
-    if not any(t in READ_VERBS for t in tokens):
+    verb = next((t for t in tokens if t in _KNOWN_VERBS), None)
+    if verb is None:
         allowed = ", ".join(sorted(READ_VERBS))
         raise MutatingCommandError(
-            f"Blockiert: 'stackit {' '.join(args)}' ist kein lesender Command "
-            f"(erforderlich ist eines der Verben: {allowed})."
+            f"Blockiert: 'stackit {' '.join(args)}' enthält kein lesendes Verb "
+            f"({allowed}). Dieses Projekt darf STACKIT nur lesen."
+        )
+    if verb not in READ_VERBS:
+        raise MutatingCommandError(
+            f"Blockiert: 'stackit {' '.join(args)}' — mutierendes Verb '{verb}'. Dieses Projekt darf STACKIT nur lesen."
         )
 
 
-def run_json(args: list[str], *, default: object = _RAISE) -> list | dict:
-    """Führt einen **lesenden** stackit-Command aus und parst dessen JSON-Ausgabe.
+def run_stackit_query(args: list[str], *, default: object = _RAISE) -> list | dict:
+    """Führt eine **lesende** Abfrage gegen die STACKIT-API (via CLI) aus.
 
     Der Command wird zuerst gegen die Read-Only-Garantie geprüft; ein mutierender
     Command wird abgelehnt, bevor stackit gestartet wird. ``--output-format json``
-    wird automatisch angehängt.
+    wird automatisch angehängt und die Ausgabe geparst.
 
-    Schlägt der Command fehl, wird abgebrochen (Exit 1) — außer ``default`` ist
+    Schlägt die Abfrage fehl, wird abgebrochen (Exit 1) — außer ``default`` ist
     gesetzt, dann wird dieser Wert zurückgegeben (für best-effort-Anreicherung).
     """
     assert_read_only(args)
@@ -178,13 +207,13 @@ class ServerEnricher:
         if not image_id:
             return {}
         if image_id not in self._image_cache:
-            image = run_json(["image", "describe", image_id, "--project-id", project_id], default={})
+            image = run_stackit_query(["image", "describe", image_id, "--project-id", project_id], default={})
             self._image_cache[image_id] = image if isinstance(image, dict) else {}
         return self._image_cache[image_id]
 
     def _machine_type(self, name: str | None, project_id: str) -> dict:
         if project_id not in self._machine_type_projects:
-            types = run_json(["server", "machine-type", "list", "--project-id", project_id], default=[])
+            types = run_stackit_query(["server", "machine-type", "list", "--project-id", project_id], default=[])
             if isinstance(types, list):
                 for t in types:
                     if isinstance(t, dict) and t.get("name"):

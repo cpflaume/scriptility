@@ -10,8 +10,8 @@ import pytest
 from scripts.check_stackit_port import main, rule_allows
 
 
-def _fake_run_json(args):
-    """Simuliert lib.stackit.run_json: security-group list + rule list."""
+def _fake_query(args):
+    """Simuliert lib.stackit.run_stackit_query: security-group list + rule list."""
     if args[0] == "security-group" and "rule" not in args:
         return [{"id": "sg-1", "name": "web"}]
     return [
@@ -31,7 +31,7 @@ def _fake_run_json(args):
 
 def test_port_open(monkeypatch, capsys):
     monkeypatch.setenv("STACKIT_SERVICE_ACCOUNT_TOKEN", "x")
-    with patch("scripts.check_stackit_port.run_json", side_effect=_fake_run_json):
+    with patch("scripts.check_stackit_port.run_stackit_query", side_effect=_fake_query):
         rc = main(["--project-id", "p", "--port", "443", "--json"])
     assert rc == 0
     data = json.loads(capsys.readouterr().out)
@@ -42,14 +42,14 @@ def test_port_open(monkeypatch, capsys):
 
 def test_port_closed(monkeypatch):
     monkeypatch.setenv("STACKIT_SERVICE_ACCOUNT_TOKEN", "x")
-    with patch("scripts.check_stackit_port.run_json", side_effect=_fake_run_json):
+    with patch("scripts.check_stackit_port.run_stackit_query", side_effect=_fake_query):
         rc = main(["--project-id", "p", "--port", "22"])
     assert rc == 1
 
 
 def test_wrong_protocol_closed(monkeypatch):
     monkeypatch.setenv("STACKIT_SERVICE_ACCOUNT_TOKEN", "x")
-    with patch("scripts.check_stackit_port.run_json", side_effect=_fake_run_json):
+    with patch("scripts.check_stackit_port.run_stackit_query", side_effect=_fake_query):
         rc = main(["--project-id", "p", "--port", "443", "--protocol", "udp"])
     assert rc == 1
 

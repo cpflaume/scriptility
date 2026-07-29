@@ -25,7 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[0]))
 from lib.common import EXIT_OK, emit, get_logger, require_env  # noqa: E402
-from lib.stackit import SERVER_FIELDS, ServerEnricher, run_json  # noqa: E402
+from lib.stackit import SERVER_FIELDS, ServerEnricher, run_stackit_query  # noqa: E402
 
 log = get_logger("stackit.all-servers")
 
@@ -39,7 +39,7 @@ def collect_servers() -> list[dict]:
     greift damit auch projektübergreifend (Image-IDs sind global eindeutig).
     """
     enricher = ServerEnricher()
-    projects = run_json(["project", "list"])
+    projects = run_stackit_query(["project", "list"])
     rows: list[dict] = []
     for p in projects:
         pid = p.get("projectId") or p.get("id")
@@ -47,7 +47,7 @@ def collect_servers() -> list[dict]:
             log.warning("Projekt ohne ID übersprungen: %s", p)
             continue
         pname = p.get("name", "")
-        servers = run_json(["server", "list", "--project-id", pid])
+        servers = run_stackit_query(["server", "list", "--project-id", pid])
         for s in servers:
             rows.append({"project_id": pid, "project_name": pname, **enricher.enrich(s, pid)})
     return rows

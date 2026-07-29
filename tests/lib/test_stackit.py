@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from scripts.lib.stackit import MutatingCommandError, ServerEnricher, assert_read_only, run_json
+from scripts.lib.stackit import MutatingCommandError, ServerEnricher, assert_read_only, run_stackit_query
 
 
 @pytest.mark.parametrize(
@@ -36,8 +36,13 @@ def test_read_commands_allowed(args):
         ["security-group", "rule", "create", "--project-id", "p"],
         ["server", "start", "--server-id", "s"],
         ["server", "delete", "s-123", "--project-id", "p"],  # mutierendes Verb vor positionaler ID
+        # Das erste Verb entscheidet: ein positionales Argument, das wie ein
+        # Lese-Verb aussieht (Server namens "list"), darf create nicht durchlassen.
+        ["server", "create", "list"],
+        ["dns", "record-set", "delete", "describe"],
         [],  # leerer Command => default-deny
         ["--help"],  # nur Flags, kein Verb
+        ["server", "console", "--server-id", "s"],  # kein list/describe => blockiert (sichere Richtung)
     ],
 )
 def test_mutating_commands_blocked(args):
@@ -45,22 +50,22 @@ def test_mutating_commands_blocked(args):
         assert_read_only(args)
 
 
-def test_run_json_blocks_before_subprocess():
+def test_run_stackit_query_blocks_before_subprocess():
     """Ein mutierender Command darf stackit gar nicht erst starten."""
     with patch("subprocess.run") as run:
         with pytest.raises(MutatingCommandError):
-            run_json(["server", "delete", "--server-id", "s"])
+            run_stackit_query(["server", "delete", "--server-id", "s"])
         run.assert_not_called()
 
 
-def test_run_json_parses_read_output():
+def test_run_stackit_query_parses_read_output():
     class _Res:
         returncode = 0
         stderr = ""
         stdout = json.dumps([{"id": "s-1"}])
 
     with patch("subprocess.run", return_value=_Res()):
-        out = run_json(["server", "list", "--project-id", "p"])
+        out = run_stackit_query(["server", "list", "--project-id", "p"])
     assert out == [{"id": "s-1"}]
 
 

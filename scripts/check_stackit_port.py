@@ -24,7 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[0]))
 from lib.common import EXIT_FAIL, EXIT_OK, emit, get_logger, require_env  # noqa: E402
-from lib.stackit import run_json  # noqa: E402
+from lib.stackit import run_stackit_query  # noqa: E402
 
 log = get_logger("stackit.check-port")
 
@@ -48,10 +48,12 @@ def rule_allows(rule: dict, port: int, protocol: str, direction: str) -> bool:
 
 def find_matches(project_id: str, port: int, protocol: str, direction: str) -> list[dict]:
     """Sammelt alle Regeln, die den Port freischalten."""
-    groups = run_json(["security-group", "list", "--project-id", project_id])
+    groups = run_stackit_query(["security-group", "list", "--project-id", project_id])
     matches: list[dict] = []
     for g in groups:
-        rules = run_json(["security-group", "rule", "list", "--project-id", project_id, "--security-group-id", g["id"]])
+        rules = run_stackit_query(
+            ["security-group", "rule", "list", "--project-id", project_id, "--security-group-id", g["id"]]
+        )
         for rule in rules:
             if rule_allows(rule, port, protocol, direction):
                 matches.append(
