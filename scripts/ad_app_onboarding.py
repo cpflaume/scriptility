@@ -9,9 +9,16 @@ Modi:
   - Standard: reiner Dump des Ist-Zustands (Konto, Hostnamen, Gruppen+Mitglieder).
   - Mit --spec <datei.json>: zusaetzlicher Soll-/Ist-Abgleich (pass/fail).
 
-Der --host-Zielrechner braucht das RSAT-Modul 'ActiveDirectory' (Domain-Member
-Admin-/Jump-Host oder ein DC). Credentials via WIN_USER/WIN_PASSWORD (siehe
-scripts/lib/winrm.py).
+Voraussetzungen (Details: docs/REQUIREMENTS.md, Abschnitt 'ad-app-onboarding'):
+  - ENV WIN_USER/WIN_PASSWORD (WinRM-Auth); optional WIN_TRANSPORT/WIN_PORT/
+    WIN_TLS_VERIFY (siehe scripts/lib/winrm.py und .env.example).
+  - --host ist per WinRM erreichbar (HTTPS, Default Port 5986, Dienst laeuft).
+  - Auf --host ist das RSAT-Modul 'ActiveDirectory' installiert
+    (Domain-Member Admin-/Jump-Host oder ein DC); 'Import-Module ActiveDirectory'
+    muss klappen und ein DC erreichbar sein.
+  - WIN_USER hat Lese-Rechte in der AD (Get-ADServiceAccount/-ADUser/-ADGroup/
+    -ADGroupMember) und WinRM-Remoting-Rechte auf dem Host.
+  - --spec erwartet eine lokal lesbare JSON-Datei mit dem Soll-Zustand.
 
 Usage:
     python ad_app_onboarding.py --host <adhost> --account <sam> [--group NAME ...]
