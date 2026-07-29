@@ -15,11 +15,10 @@ from scripts.lib.stackit import MutatingCommandError, ServerEnricher, assert_rea
     [
         ["project", "list"],
         ["server", "list", "--project-id", "p"],
-        ["server", "describe", "--server-id", "s"],
-        ["security-group", "rule", "list", "--project-id", "p", "--security-group-id", "g"],
-        ["image", "list", "--all", "--project-id", "p"],
         ["server", "machine-type", "list", "--project-id", "p"],
-        # describe mit positionaler ID: das Verb steht nicht am Ende des Pfads.
+        ["security-group", "list", "--project-id", "p"],
+        ["security-group", "rule", "list", "--project-id", "p", "--security-group-id", "g"],
+        # describe mit positionaler ID hinter dem Verb ist erlaubt.
         ["image", "describe", "11111111-2222-3333-4444-555555555555", "--project-id", "p"],
     ],
 )
@@ -30,19 +29,25 @@ def test_read_commands_allowed(args):
 @pytest.mark.parametrize(
     "args",
     [
+        # Mutierende Commands.
         ["server", "create", "--name", "x"],
         ["server", "delete", "--server-id", "s"],
         ["server", "update", "--server-id", "s"],
         ["security-group", "rule", "create", "--project-id", "p"],
         ["server", "start", "--server-id", "s"],
-        ["server", "delete", "s-123", "--project-id", "p"],  # mutierendes Verb vor positionaler ID
-        # Das erste Verb entscheidet: ein positionales Argument, das wie ein
-        # Lese-Verb aussieht (Server namens "list"), darf create nicht durchlassen.
+        ["server", "delete", "s-123", "--project-id", "p"],
+        # Positionales Argument, das wie ein Lese-Verb aussieht (Server namens
+        # "list"), darf einen create-Command nicht durchlassen.
         ["server", "create", "list"],
-        ["dns", "record-set", "delete", "describe"],
-        [],  # leerer Command => default-deny
-        ["--help"],  # nur Flags, kein Verb
-        ["server", "console", "--server-id", "s"],  # kein list/describe => blockiert (sichere Richtung)
+        # Lesende, aber NICHT freigeschaltete Commands werden ebenfalls blockiert
+        # (Default-Deny — Allowlist statt Verb-Heuristik).
+        ["server", "describe", "--server-id", "s"],
+        ["image", "list", "--all", "--project-id", "p"],
+        ["volume", "list", "--project-id", "p"],
+        # Kein bekannter Command / nur Flags.
+        [],
+        ["--help"],
+        ["server", "console", "--server-id", "s"],
     ],
 )
 def test_mutating_commands_blocked(args):

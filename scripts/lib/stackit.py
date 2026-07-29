@@ -1,10 +1,18 @@
 """Zentrale, **nur lesende** Anbindung an die STACKIT-CLI.
 
 Alle Python-Skripte, die stackit aufrufen, gehen über diesen Helfer. Er setzt
-eine Read-Only-Garantie durch (Default-Deny): das **erste bekannte Verb** im
-Command-Pfad muss ein lesendes Verb (``list``/``describe``) sein — sonst wird
-der Aufruf abgelehnt, *bevor* stackit gestartet wird. So kann kein Skript
-versehentlich Infrastruktur verändern.
+eine Read-Only-Garantie durch (Default-Deny): ein Aufruf wird nur ausgeführt,
+wenn sein Command-Pfad exakt einem der in ``ALLOWED_READ_COMMANDS``
+freigeschalteten Lese-Kommandos entspricht. Alles andere — mutierende,
+unbekannte oder verschleierte Commands — wird abgelehnt, *bevor* stackit
+startet. Bewusst eine Allowlist exakter Kommandos statt einer Verb-Heuristik:
+so kann weder ein neues/unbekanntes Verb noch ein positionales Argument, das
+wie ``list`` aussieht, die Prüfung austricksen.
+
+Wichtig: Dieser Guard ist eine Client-seitige Schutzschicht, **keine
+Autorisierungsgrenze**. Die eigentliche Absicherung ist ein Service Account mit
+ausschließlich lesenden Rechten (STACKIT-IAM) — dann kann selbst ein Bypass
+dieses Moduls nichts verändern.
 
 Neben dem Guard bündelt das Modul die (ebenfalls rein lesenden) IaaS-Lookups,
 die mehrere Server-Skripte teilen: Image-/OS-Details, Flavor (vCPU/RAM) und
@@ -26,69 +34,18 @@ from lib.common import EXIT_FAIL, get_logger  # noqa: E402
 
 log = get_logger("stackit")
 
-# Lesende Verben. Gegen die STACKIT-CLI-Referenz geprüft: für Lese-Operationen
-# kennt die CLI genau `list` und `describe`. (Einzelfälle wie `console`/`log`
-# werden bewusst mit-blockiert — sie sind für dieses Projekt nicht nötig, und
-# Über-Blocken ist die sichere Richtung.)
-READ_VERBS = frozenset({"list", "describe"})
-
-# Bekannte mutierende Verben. Diese Liste ist absichtlich NICHT die
-# Sicherheitsgarantie — die liefert der Default-Deny in assert_read_only (ohne
-# Lese-Verb wird ohnehin blockiert). Sie ist ein Tripwire: sie sorgt dafür,
-# dass ein mutierendes Verb auch dann als *Aktion* erkannt wird, wenn danach
-# ein positionales Argument folgt, das zufällig wie ein Lese-Verb aussieht
-# (z. B. ein Server namens "list" bei `server create list`). Nicht erschöpfend.
-MUTATING_VERBS = frozenset(
-    {
-        "create",
-        "update",
-        "partial-update",
-        "delete",
-        "set",
-        "add",
-        "remove",
-        "attach",
-        "detach",
-        "enable",
-        "disable",
-        "start",
-        "stop",
-        "restart",
-        "reboot",
-        "deallocate",
-        "resize",
-        "rescue",
-        "unrescue",
-        "restore",
-        "reset",
-        "rotate",
-        "regenerate",
-        "renew",
-        "generate",
-        "run",
-        "execute",
-        "trigger",
-        "apply",
-        "revoke",
-        "import",
-        "export",
-        "upload",
-        "activate",
-        "deactivate",
-        "scale",
-        "pause",
-        "resume",
-        "promote",
-        "failover",
-        "clone",
-        "cancel",
-        "confirm",
-        "move",
-        "migrate",
-    }
+# Genau diese Read-Command-Pfade darf dieses Projekt ausführen. Der Command-Pfad
+# eines Aufrufs (Resource + Verb, ohne Flags und ohne positionale IDs) muss mit
+# genau einem dieser Prefixe beginnen — sonst wird blockiert. Neue Lese-Kommandos
+# hier bewusst (und reviewbar) freischalten; nur `list`/`describe`-Endpunkte.
+ALLOWED_READ_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("project", "list"),
+    ("server", "list"),
+    ("server", "machine-type", "list"),
+    ("image", "describe"),
+    ("security-group", "list"),
+    ("security-group", "rule", "list"),
 )
-
-_KNOWN_VERBS = READ_VERBS | MUTATING_VERBS
 
 # Sentinel: run_stackit_query soll bei Fehler abbrechen, statt einen Default
 # zurückzugeben.
@@ -96,7 +53,7 @@ _RAISE = object()
 
 
 class MutatingCommandError(RuntimeError):
-    """Ausgelöst, wenn ein nicht-lesender stackit-Command versucht wird."""
+    """Ausgelöst, wenn ein nicht freigeschalteter (potenziell mutierender) Command versucht wird."""
 
 
 def _command_tokens(args: list[str]) -> list[str]:
@@ -104,7 +61,7 @@ def _command_tokens(args: list[str]) -> list[str]:
 
     Damit werden Resource-Pfad + Verb (+ ggf. positionale ID) erfasst, aber
     Flag-Werte (``--project-id <wert>``) ausgeklammert — die könnten sonst
-    zufällig wie ein Verb aussehen.
+    zufällig wie ein Command-Bestandteil aussehen.
     """
     tokens: list[str] = []
     for tok in args:
@@ -114,34 +71,33 @@ def _command_tokens(args: list[str]) -> list[str]:
     return tokens
 
 
-def assert_read_only(args: list[str]) -> None:
-    """Erlaubt nur lesende stackit-Commands; wirft sonst MutatingCommandError.
+def _starts_with(tokens: list[str], prefix: tuple[str, ...]) -> bool:
+    return len(tokens) >= len(prefix) and tuple(tokens[: len(prefix)]) == prefix
 
-    Das **erste bekannte Verb** im Command-Pfad bestimmt die Aktion. Ist es kein
-    Lese-Verb — oder kommt gar kein bekanntes Verb vor — wird abgelehnt. So
-    entscheidet die Aktion, nicht ein nachgestelltes positionales Argument, das
-    wie ``list`` aussieht.
+
+def assert_read_only(args: list[str]) -> None:
+    """Erlaubt nur freigeschaltete Lese-Kommandos; wirft sonst MutatingCommandError.
+
+    Geprüft wird der Command-Pfad (alles bis zum ersten Flag): er muss mit genau
+    einem Eintrag aus ``ALLOWED_READ_COMMANDS`` beginnen. Eine positionale ID
+    hinter dem Verb (z. B. ``image describe <id>``) ist erlaubt; ein anderes oder
+    zusätzliches Verb davor nicht.
     """
     tokens = _command_tokens(args)
-    verb = next((t for t in tokens if t in _KNOWN_VERBS), None)
-    if verb is None:
-        allowed = ", ".join(sorted(READ_VERBS))
+    if not any(_starts_with(tokens, allowed) for allowed in ALLOWED_READ_COMMANDS):
+        allowed = "; ".join("stackit " + " ".join(cmd) for cmd in ALLOWED_READ_COMMANDS)
         raise MutatingCommandError(
-            f"Blockiert: 'stackit {' '.join(args)}' enthält kein lesendes Verb "
-            f"({allowed}). Dieses Projekt darf STACKIT nur lesen."
-        )
-    if verb not in READ_VERBS:
-        raise MutatingCommandError(
-            f"Blockiert: 'stackit {' '.join(args)}' — mutierendes Verb '{verb}'. Dieses Projekt darf STACKIT nur lesen."
+            f"Blockiert: 'stackit {' '.join(args)}' ist kein freigeschalteter Lese-Command. "
+            f"Erlaubt (Read-Only): {allowed}. Neue Lese-Kommandos in ALLOWED_READ_COMMANDS ergänzen."
         )
 
 
 def run_stackit_query(args: list[str], *, default: object = _RAISE) -> list | dict:
     """Führt eine **lesende** Abfrage gegen die STACKIT-API (via CLI) aus.
 
-    Der Command wird zuerst gegen die Read-Only-Garantie geprüft; ein mutierender
-    Command wird abgelehnt, bevor stackit gestartet wird. ``--output-format json``
-    wird automatisch angehängt und die Ausgabe geparst.
+    Der Command wird zuerst gegen die Read-Only-Allowlist geprüft; alles, was
+    nicht freigeschaltet ist, wird abgelehnt, bevor stackit gestartet wird.
+    ``--output-format json`` wird automatisch angehängt und die Ausgabe geparst.
 
     Schlägt die Abfrage fehl, wird abgebrochen (Exit 1) — außer ``default`` ist
     gesetzt, dann wird dieser Wert zurückgegeben (für best-effort-Anreicherung).
