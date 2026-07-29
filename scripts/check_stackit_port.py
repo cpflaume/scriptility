@@ -61,7 +61,7 @@ def find_matches(project_id: str, port: int, protocol: str, direction: str) -> l
                         "protocol": (rule.get("protocol") or {}).get("name", "any"),
                         "port_min": (rule.get("portRange") or {}).get("min"),
                         "port_max": (rule.get("portRange") or {}).get("max"),
-                        "remote": rule.get("remoteIpRange") or rule.get("remoteSecurityGroupId") or "any",
+                        "remote": rule.get("ipRange") or rule.get("remoteSecurityGroupId") or "any",
                     }
                 )
     return matches

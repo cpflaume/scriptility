@@ -24,7 +24,7 @@ def _fake_stackit(args, **_kwargs):
                     "direction": "ingress",
                     "protocol": {"name": "tcp"},
                     "portRange": {"min": 443, "max": 443},
-                    "remoteIpRange": "0.0.0.0/0",
+                    "ipRange": "0.0.0.0/0",
                 }
             ]
         )
@@ -42,6 +42,7 @@ def test_main_renders_rules(monkeypatch, capsys):
     assert out[0]["group"] == "web"
     assert out[0]["protocol"] == "tcp"
     assert out[0]["port_min"] == 443
+    assert out[0]["remote"] == "0.0.0.0/0"
 
 
 def test_main_requires_env(monkeypatch):

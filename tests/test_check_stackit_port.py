@@ -19,7 +19,7 @@ def _fake_run_json(args):
             "direction": "ingress",
             "protocol": {"name": "tcp"},
             "portRange": {"min": 443, "max": 443},
-            "remoteIpRange": "0.0.0.0/0",
+            "ipRange": "0.0.0.0/0",
         },
         {
             "direction": "ingress",
@@ -37,6 +37,7 @@ def test_port_open(monkeypatch, capsys):
     data = json.loads(capsys.readouterr().out)
     assert data["open"] is True
     assert data["matched_rules"][0]["group"] == "web"
+    assert data["matched_rules"][0]["remote"] == "0.0.0.0/0"
 
 
 def test_port_closed(monkeypatch):
