@@ -65,7 +65,7 @@ tasks:
     cmds: ['bash scripts/list_linux_users.sh {{.CLI_ARGS}}']
 
   list-stackit-all-servers:
-    desc: 'Listet alle Server über alle STACKIT-Projekte als CSV. Usage: task list-stackit-all-servers -- [--json]'
+    desc: 'Server über alle STACKIT-Projekte als CSV (OS/Image, Flavor, IPs, State). Usage: task list-stackit-all-servers -- [--json]'
     cmds: ['uv run python scripts/list_stackit_all_servers.py {{.CLI_ARGS}}']
 
   list-stackit-firewall-rules:
@@ -73,7 +73,7 @@ tasks:
     cmds: ['uv run python scripts/list_stackit_firewall_rules.py {{.CLI_ARGS}}']
 
   list-stackit-servers:
-    desc: 'Listet alle Server eines STACKIT-Projekts mit Status. Usage: task list-stackit-servers -- <project_id> [--json]'
+    desc: 'Server eines STACKIT-Projekts inkl. OS/Image, Flavor (vCPU/RAM), IPs & State. Usage: task list-stackit-servers -- <project_id> [--json]'
     cmds: ['uv run python scripts/list_stackit_servers.py {{.CLI_ARGS}}']
 
   list-windows-services:

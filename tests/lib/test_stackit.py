@@ -17,6 +17,10 @@ from scripts.lib.stackit import MutatingCommandError, assert_read_only, run_json
         ["server", "list", "--project-id", "p"],
         ["server", "describe", "--server-id", "s"],
         ["security-group", "rule", "list", "--project-id", "p", "--security-group-id", "g"],
+        ["image", "list", "--all", "--project-id", "p"],
+        ["server", "machine-type", "list", "--project-id", "p"],
+        # describe mit positionaler ID: das Verb steht nicht am Ende des Pfads.
+        ["image", "describe", "11111111-2222-3333-4444-555555555555", "--project-id", "p"],
     ],
 )
 def test_read_commands_allowed(args):
@@ -31,6 +35,7 @@ def test_read_commands_allowed(args):
         ["server", "update", "--server-id", "s"],
         ["security-group", "rule", "create", "--project-id", "p"],
         ["server", "start", "--server-id", "s"],
+        ["server", "delete", "s-123", "--project-id", "p"],  # mutierendes Verb vor positionaler ID
         [],  # leerer Command => default-deny
         ["--help"],  # nur Flags, kein Verb
     ],

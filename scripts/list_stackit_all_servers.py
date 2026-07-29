@@ -1,8 +1,10 @@
 """Listet alle STACKIT-Compute-Server über **alle** Projekte hinweg als CSV.
 
 Ermittelt zuerst alle Projekte des Service Accounts (``stackit project list``),
-dann pro Projekt die Server (``stackit server list``). Alle Aufrufe laufen über
-den Read-Only-Guard aus ``lib.stackit`` — es wird garantiert nichts verändert.
+dann pro Projekt die Server (``stackit server list``) und reichert sie an:
+Status & Power-State, OS/Image, Flavor (vCPU/RAM) und IPs. Alle Aufrufe laufen
+über den Read-Only-Guard aus ``lib.stackit`` — es wird garantiert nichts
+verändert.
 
 Standardausgabe ist CSV nach stdout (pipebar); ``--json`` liefert dieselbe
 Struktur maschinenlesbar. Logs gehen nach stderr.
@@ -23,19 +25,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[0]))
 from lib.common import EXIT_OK, emit, get_logger, require_env  # noqa: E402
-from lib.stackit import run_json  # noqa: E402
+from lib.stackit import SERVER_FIELDS, enrich_server, image_index, machine_type_index, run_json  # noqa: E402
 
 log = get_logger("stackit.all-servers")
 
-FIELDS = [
-    "project_id",
-    "project_name",
-    "server_id",
-    "server_name",
-    "status",
-    "machine_type",
-    "availability_zone",
-]
+FIELDS = ["project_id", "project_name", *SERVER_FIELDS]
 
 
 def collect_servers() -> list[dict]:
@@ -48,19 +42,11 @@ def collect_servers() -> list[dict]:
             log.warning("Projekt ohne ID übersprungen: %s", p)
             continue
         pname = p.get("name", "")
+        images = image_index(pid)
+        machine_types = machine_type_index(pid)
         servers = run_json(["server", "list", "--project-id", pid])
         for s in servers:
-            rows.append(
-                {
-                    "project_id": pid,
-                    "project_name": pname,
-                    "server_id": s.get("id", ""),
-                    "server_name": s.get("name", ""),
-                    "status": s.get("status", ""),
-                    "machine_type": s.get("machineType", ""),
-                    "availability_zone": s.get("availabilityZone", ""),
-                }
-            )
+            rows.append({"project_id": pid, "project_name": pname, **enrich_server(s, images, machine_types)})
     return rows
 
 

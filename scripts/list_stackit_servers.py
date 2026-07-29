@@ -1,8 +1,9 @@
-"""Listet alle STACKIT-Compute-Server eines Projekts mit Status.
+"""Listet alle STACKIT-Compute-Server eines Projekts inkl. Detail-Infos.
 
-Alle stackit-Aufrufe laufen über den Read-Only-Guard aus ``lib.stackit`` — es
-wird garantiert nichts verändert. Standardausgabe ist eine Tabelle nach stdout;
-``--json`` liefert die Rohstruktur maschinenlesbar. Logs gehen nach stderr.
+Pro Server werden (rein lesend, via ``lib.stackit``) angereichert: Status &
+Power-State (RUNNING/STOPPED), OS/Image, Flavor (vCPU/RAM) sowie private und
+öffentliche IPs. Standardausgabe ist eine kompakte Tabelle nach stdout;
+``--json`` liefert alle Felder maschinenlesbar. Logs gehen nach stderr.
 
 Usage:
     python list_stackit_servers.py <project_id> [--json]
@@ -19,29 +20,33 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[0]))
 from lib.common import EXIT_OK, emit, get_logger, require_env  # noqa: E402
-from lib.stackit import run_json  # noqa: E402
+from lib.stackit import enrich_server, image_index, machine_type_index, run_json  # noqa: E402
 
 log = get_logger("stackit.servers")
 
 
 def collect_servers(project_id: str) -> list[dict]:
+    images = image_index(project_id)
+    machine_types = machine_type_index(project_id)
     servers = run_json(["server", "list", "--project-id", project_id])
-    return [
-        {
-            "id": s.get("id", ""),
-            "name": s.get("name", ""),
-            "status": s.get("status", ""),
-            "machine_type": s.get("machineType", ""),
-        }
-        for s in servers
-    ]
+    return [enrich_server(s, images, machine_types) for s in servers]
 
 
 def render_table(rows: list[dict]) -> None:
-    print(f"{'ID':38} {'Name':24} {'Status':12} {'Machine-Type'}")
-    print("-" * 90)
+    header = (
+        f"{'Name':22} {'Power':9} {'OS':18} {'vCPU':>4} {'RAM/GB':>6} "
+        f"{'Private-IP':16} {'Public-IP':16} {'Machine-Type'}"
+    )
+    print(header)
+    print("-" * len(header))
     for r in rows:
-        print(f"{r['id']:38.38} {r['name']:24.24} {r['status']:12.12} {r['machine_type']}")
+        os_label = " ".join(x for x in (r["os_distro"], r["os_version"]) if x) or r["os"] or "-"
+        print(
+            f"{r['name']:22.22} {r['power_status']:9.9} {os_label:18.18} "
+            f"{str(r['vcpus'] if r['vcpus'] is not None else '-'):>4} "
+            f"{str(r['ram_gb'] if r['ram_gb'] is not None else '-'):>6} "
+            f"{(r['private_ips'] or '-'):16.16} {(r['public_ips'] or '-'):16.16} {r['machine_type']}"
+        )
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
