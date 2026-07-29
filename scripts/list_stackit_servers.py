@@ -20,16 +20,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[0]))
 from lib.common import EXIT_OK, emit, get_logger, require_env  # noqa: E402
-from lib.stackit import enrich_server, image_index, machine_type_index, run_json  # noqa: E402
+from lib.stackit import ServerEnricher, run_json  # noqa: E402
 
 log = get_logger("stackit.servers")
 
 
 def collect_servers(project_id: str) -> list[dict]:
-    images = image_index(project_id)
-    machine_types = machine_type_index(project_id)
+    enricher = ServerEnricher()
     servers = run_json(["server", "list", "--project-id", project_id])
-    return [enrich_server(s, images, machine_types) for s in servers]
+    return [enricher.enrich(s, project_id) for s in servers]
 
 
 def render_table(rows: list[dict]) -> None:

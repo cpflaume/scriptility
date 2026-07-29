@@ -12,18 +12,17 @@ import pytest
 from scripts.list_stackit_all_servers import main
 
 _PROJECTS = [{"projectId": "p-1", "name": "alpha"}]
-_IMAGES = [
-    {
-        "id": "img-win",
-        "name": "Windows Server 2022",
-        "config": {
-            "operatingSystem": "windows",
-            "operatingSystemDistro": "windows",
-            "operatingSystemVersion": "2022",
-        },
-    }
-]
-_MACHINE_TYPES = [{"name": "g1.4", "vcpus": 4, "ram": 8192, "disk": 40}]
+# image describe <id> liefert ein einzelnes Objekt (kein Array).
+_IMAGE = {
+    "id": "img-win",
+    "name": "Windows Server 2022",
+    "config": {
+        "operatingSystem": "windows",
+        "operatingSystemDistro": "windows",
+        "operatingSystemVersion": "2022",
+    },
+}
+_MACHINE_TYPES = [{"name": "g1.4", "vcpus": 4, "ram": 8192, "disk": 40, "description": "General Purpose"}]
 _SERVERS = [
     {
         "id": "s-1",
@@ -50,7 +49,7 @@ def _fake_subprocess(cmd, **_kwargs):
     elif "machine-type" in args:
         _Res.stdout = json.dumps(_MACHINE_TYPES)
     elif args[0] == "image":
-        _Res.stdout = json.dumps(_IMAGES)
+        _Res.stdout = json.dumps(_IMAGE)
     elif args[0] == "server":
         _Res.stdout = json.dumps(_SERVERS)
     else:
@@ -73,6 +72,8 @@ def test_csv_output(monkeypatch, capsys):
     assert row["os_version"] == "2022"
     assert row["vcpus"] == "4"
     assert row["ram_gb"] == "8.0"
+    assert row["disk_gb"] == "40"
+    assert row["flavor_description"] == "General Purpose"
     assert row["public_ips"] == "5.6.7.8"
 
 

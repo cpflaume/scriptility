@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from scripts.lib.stackit import MutatingCommandError, assert_read_only, run_json
+from scripts.lib.stackit import MutatingCommandError, ServerEnricher, assert_read_only, run_json
 
 
 @pytest.mark.parametrize(
@@ -62,3 +62,38 @@ def test_run_json_parses_read_output():
     with patch("subprocess.run", return_value=_Res()):
         out = run_json(["server", "list", "--project-id", "p"])
     assert out == [{"id": "s-1"}]
+
+
+def test_server_enricher_caches_images_across_projects():
+    """Image wird nur bei Cache-Miss geladen; IDs gelten projektübergreifend."""
+    calls = {"image": 0, "machine_type": 0}
+
+    def fake(cmd, **_kwargs):
+        args = cmd[1:-2]
+
+        class _Res:
+            returncode = 0
+            stderr = ""
+
+        if args[0] == "image":  # image describe <id>
+            calls["image"] += 1
+            _Res.stdout = json.dumps({"id": args[2], "name": "Ubuntu", "config": {"operatingSystem": "linux"}})
+        elif "machine-type" in args:
+            calls["machine_type"] += 1
+            _Res.stdout = json.dumps([{"name": "g1.2", "vcpus": 2, "ram": 4096, "disk": 20}])
+        else:
+            _Res.stdout = "[]"
+        return _Res()
+
+    server = {"id": "s", "name": "n", "machineType": "g1.2", "imageId": "img-1"}
+    enricher = ServerEnricher()
+    with patch("subprocess.run", side_effect=fake):
+        r1 = enricher.enrich(server, "p-1")
+        enricher.enrich({**server, "id": "s2"}, "p-1")  # gleiches Projekt, gleiches Image
+        r3 = enricher.enrich({**server, "id": "s3"}, "p-2")  # anderes Projekt, gleiche Image-ID
+
+    assert r1["os"] == "linux"
+    assert r1["vcpus"] == 2
+    assert r3["disk_gb"] == 20
+    assert calls["image"] == 1  # Image nur einmal geladen (Cache greift projektübergreifend)
+    assert calls["machine_type"] == 2  # machine-type list genau einmal pro Projekt

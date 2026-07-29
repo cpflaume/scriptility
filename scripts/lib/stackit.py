@@ -139,8 +139,10 @@ SERVER_FIELDS = [
     "status",
     "power_status",
     "machine_type",
+    "flavor_description",
     "vcpus",
     "ram_gb",
+    "disk_gb",
     "image_id",
     "image_name",
     "os",
@@ -152,56 +154,72 @@ SERVER_FIELDS = [
 ]
 
 
-def _index_by(items: object, key: str) -> dict:
-    """{item[key]: item} für eine Liste von Objekten (fehlertolerant)."""
-    if not isinstance(items, list):
-        return {}
-    return {item[key]: item for item in items if isinstance(item, dict) and item.get(key)}
+class ServerEnricher:
+    """Reichert Server rein lesend um OS-/Image-, Flavor- und IP-Details an.
 
+    Caches werden über die gesamte Lebensdauer der Instanz gehalten, damit ein
+    Lauf über viele Projekte nicht immer wieder dieselben Daten abfragt:
 
-def image_index(project_id: str) -> dict:
-    """{image_id: image} eines Projekts (inkl. ``config`` mit OS-Infos).
+    - Images per ID — Image-IDs sind projektübergreifend eindeutig, ein Treffer
+      aus einem anderen Projekt ist also gültig. Bei Cache-Miss wird das Image
+      gezielt via ``image describe <id>`` nachgeladen.
+    - Machine-Types per Projekt — ``server machine-type list`` wird je Projekt
+      höchstens einmal aufgerufen; die Specs landen (per Name) im Cache.
 
-    ``--all`` schließt auch die öffentlichen STACKIT-Basis-Images ein, auf die
-    Server üblicherweise verweisen. Fehler werden toleriert (leere Map).
+    Fehler bei der Anreicherung werden toleriert (leere Details statt Abbruch).
     """
-    images = run_json(["image", "list", "--all", "--project-id", project_id], default=[])
-    return _index_by(images, "id")
 
+    def __init__(self) -> None:
+        self._image_cache: dict[str, dict] = {}
+        self._machine_types: dict[str, dict] = {}
+        self._machine_type_projects: set[str] = set()
 
-def machine_type_index(project_id: str) -> dict:
-    """{machine_type_name: machine_type} eines Projekts (vcpus/ram/disk)."""
-    types = run_json(["server", "machine-type", "list", "--project-id", project_id], default=[])
-    return _index_by(types, "name")
+    def _image(self, image_id: str, project_id: str) -> dict:
+        if not image_id:
+            return {}
+        if image_id not in self._image_cache:
+            image = run_json(["image", "describe", image_id, "--project-id", project_id], default={})
+            self._image_cache[image_id] = image if isinstance(image, dict) else {}
+        return self._image_cache[image_id]
 
+    def _machine_type(self, name: str | None, project_id: str) -> dict:
+        if project_id not in self._machine_type_projects:
+            types = run_json(["server", "machine-type", "list", "--project-id", project_id], default=[])
+            if isinstance(types, list):
+                for t in types:
+                    if isinstance(t, dict) and t.get("name"):
+                        self._machine_types.setdefault(t["name"], t)
+            self._machine_type_projects.add(project_id)
+        return self._machine_types.get(name, {}) if name else {}
 
-def enrich_server(server: dict, images: dict, machine_types: dict) -> dict:
-    """Reichert ein Server-Objekt um OS-/Image-, Flavor- und IP-Details an."""
-    nics = server.get("nics") or []
-    private_ips = [n.get("ipv4") for n in nics if n.get("ipv4")]
-    public_ips = [n.get("publicIp") for n in nics if n.get("publicIp")]
+    def enrich(self, server: dict, project_id: str) -> dict:
+        nics = server.get("nics") or []
+        private_ips = [n.get("ipv4") for n in nics if n.get("ipv4")]
+        public_ips = [n.get("publicIp") for n in nics if n.get("publicIp")]
 
-    machine_type = machine_types.get(server.get("machineType")) or {}
-    ram_mb = machine_type.get("ram")
-    ram_gb = round(ram_mb / 1024, 1) if isinstance(ram_mb, int | float) else None
+        machine_type = self._machine_type(server.get("machineType"), project_id)
+        ram_mb = machine_type.get("ram")
+        ram_gb = round(ram_mb / 1024, 1) if isinstance(ram_mb, int | float) else None
 
-    image = images.get(server.get("imageId")) or {}
-    config = image.get("config") or {}
+        image = self._image(server.get("imageId"), project_id)
+        config = image.get("config") or {}
 
-    return {
-        "id": server.get("id", ""),
-        "name": server.get("name", ""),
-        "status": server.get("status", ""),
-        "power_status": server.get("powerStatus", ""),
-        "machine_type": server.get("machineType", ""),
-        "vcpus": machine_type.get("vcpus"),
-        "ram_gb": ram_gb,
-        "image_id": server.get("imageId", ""),
-        "image_name": image.get("name", ""),
-        "os": config.get("operatingSystem", ""),
-        "os_distro": config.get("operatingSystemDistro", ""),
-        "os_version": config.get("operatingSystemVersion", ""),
-        "private_ips": ";".join(private_ips),
-        "public_ips": ";".join(public_ips),
-        "availability_zone": server.get("availabilityZone", ""),
-    }
+        return {
+            "id": server.get("id", ""),
+            "name": server.get("name", ""),
+            "status": server.get("status", ""),
+            "power_status": server.get("powerStatus", ""),
+            "machine_type": server.get("machineType", ""),
+            "flavor_description": machine_type.get("description", ""),
+            "vcpus": machine_type.get("vcpus"),
+            "ram_gb": ram_gb,
+            "disk_gb": machine_type.get("disk"),
+            "image_id": server.get("imageId", ""),
+            "image_name": image.get("name", ""),
+            "os": config.get("operatingSystem", ""),
+            "os_distro": config.get("operatingSystemDistro", ""),
+            "os_version": config.get("operatingSystemVersion", ""),
+            "private_ips": ";".join(private_ips),
+            "public_ips": ";".join(public_ips),
+            "availability_zone": server.get("availabilityZone", ""),
+        }

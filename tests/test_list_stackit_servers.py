@@ -9,18 +9,17 @@ import pytest
 
 from scripts.list_stackit_servers import main
 
-_IMAGES = [
-    {
-        "id": "img-1",
-        "name": "Ubuntu 22.04",
-        "config": {
-            "operatingSystem": "linux",
-            "operatingSystemDistro": "ubuntu",
-            "operatingSystemVersion": "22.04",
-        },
-    }
-]
-_MACHINE_TYPES = [{"name": "g1.2", "vcpus": 2, "ram": 4096, "disk": 20}]
+# image describe <id> liefert ein einzelnes Objekt (kein Array).
+_IMAGE = {
+    "id": "img-1",
+    "name": "Ubuntu 22.04",
+    "config": {
+        "operatingSystem": "linux",
+        "operatingSystemDistro": "ubuntu",
+        "operatingSystemVersion": "22.04",
+    },
+}
+_MACHINE_TYPES = [{"name": "g1.2", "vcpus": 2, "ram": 4096, "disk": 20, "description": "General Purpose"}]
 _SERVERS = [
     {
         "id": "s-1",
@@ -46,7 +45,7 @@ def _fake_subprocess(cmd, **_kwargs):
     if "machine-type" in args:
         _Res.stdout = json.dumps(_MACHINE_TYPES)
     elif args[0] == "image":
-        _Res.stdout = json.dumps(_IMAGES)
+        _Res.stdout = json.dumps(_IMAGE)
     elif args[0] == "server":
         _Res.stdout = json.dumps(_SERVERS)
     else:
@@ -80,6 +79,8 @@ def test_json_output(monkeypatch, capsys):
     assert r["image_name"] == "Ubuntu 22.04"
     assert r["vcpus"] == 2
     assert r["ram_gb"] == 4.0
+    assert r["disk_gb"] == 20
+    assert r["flavor_description"] == "General Purpose"
     assert r["private_ips"] == "10.0.0.5"
     assert r["public_ips"] == "1.2.3.4"
 

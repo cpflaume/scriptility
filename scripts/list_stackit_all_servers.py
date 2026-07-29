@@ -25,7 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[0]))
 from lib.common import EXIT_OK, emit, get_logger, require_env  # noqa: E402
-from lib.stackit import SERVER_FIELDS, enrich_server, image_index, machine_type_index, run_json  # noqa: E402
+from lib.stackit import SERVER_FIELDS, ServerEnricher, run_json  # noqa: E402
 
 log = get_logger("stackit.all-servers")
 
@@ -33,7 +33,12 @@ FIELDS = ["project_id", "project_name", *SERVER_FIELDS]
 
 
 def collect_servers() -> list[dict]:
-    """Sammelt alle Server über alle Projekte des Service Accounts."""
+    """Sammelt alle Server über alle Projekte des Service Accounts.
+
+    Ein einziger ServerEnricher über alle Projekte hinweg — sein Image-Cache
+    greift damit auch projektübergreifend (Image-IDs sind global eindeutig).
+    """
+    enricher = ServerEnricher()
     projects = run_json(["project", "list"])
     rows: list[dict] = []
     for p in projects:
@@ -42,11 +47,9 @@ def collect_servers() -> list[dict]:
             log.warning("Projekt ohne ID übersprungen: %s", p)
             continue
         pname = p.get("name", "")
-        images = image_index(pid)
-        machine_types = machine_type_index(pid)
         servers = run_json(["server", "list", "--project-id", pid])
         for s in servers:
-            rows.append({"project_id": pid, "project_name": pname, **enrich_server(s, images, machine_types)})
+            rows.append({"project_id": pid, "project_name": pname, **enricher.enrich(s, pid)})
     return rows
 
 
