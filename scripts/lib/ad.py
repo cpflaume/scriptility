@@ -117,9 +117,4 @@ def escape_filter(value: str) -> str:
 
 def escape_filter_wildcard(value: str) -> str:
     """Wie escape_filter, aber '*' bleibt als Wildcard erhalten (für -like-Filter)."""
-    return (
-        value.replace("\\", "\\5c")
-        .replace("(", "\\28")
-        .replace(")", "\\29")
-        .replace("\x00", "\\00")
-    )
+    return value.replace("\\", "\\5c").replace("(", "\\28").replace(")", "\\29").replace("\x00", "\\00")

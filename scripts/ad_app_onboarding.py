@@ -123,10 +123,7 @@ def _absent_account(identity: str) -> dict:
 def fetch_account(conn, identity: str) -> dict:
     """Liest das Service-/gMSA- bzw. User-Konto der Applikation via LDAP."""
     esc = escape_filter(identity)
-    flt = (
-        "(&(|(objectClass=user)(objectClass=msDS-GroupManagedServiceAccount))"
-        f"(sAMAccountName={esc}))"
-    )
+    flt = f"(&(|(objectClass=user)(objectClass=msDS-GroupManagedServiceAccount))(sAMAccountName={esc}))"
     entries = search(conn, base_dn(conn), flt, ACCOUNT_ATTRS)
     if not entries:
         return _absent_account(identity)
