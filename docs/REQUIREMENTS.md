@@ -39,6 +39,7 @@ Gibt eine Übersicht aus, was vorhanden / was fehlt.
 | `GITLAB_TOKEN` | GitLab-API | PAT, Scope `read_api` |
 | `STACKIT_SERVICE_ACCOUNT_TOKEN` | STACKIT-CLI | Service Account im Portal |
 | `WIN_USER` / `WIN_PASSWORD` | WinRM | Domänen-Account mit Remoting |
+| `AD_USER` / `AD_PASSWORD` | AD-LDAP (read-only) | Domänen-Account mit Lese-Rechten |
 
 Trag die Werte in `.env` ein (lokal) bzw. in der CI als geschützte Variablen.
 
@@ -46,38 +47,37 @@ Trag die Werte in `.env` ein (lokal) bzw. in der CI als geschützte Variablen.
 
 `task ad-app-onboarding` liest den Ist-Zustand aus der on-prem Active Directory
 (Service-/gMSA-Konto, SPNs/Hostnamen, Zugriffs-Gruppen + Mitglieder) per
-PowerShell `Get-AD*` über WinRM. Damit der Lauf funktioniert, müssen **alle**
-folgenden Voraussetzungen erfüllt sein:
+**LDAP(S) direkt vom Domain Controller** (Simple Bind mit User + Passwort). Ein
+Windows-Jump-Host oder RSAT-PowerShell ist **nicht** mehr nötig. Damit der Lauf
+funktioniert, müssen **alle** folgenden Voraussetzungen erfüllt sein:
 
 **1. Credentials / ENV** (siehe auch `.env.example`)
 
 | ENV-Variable | Pflicht | Default | Wofür |
 |---|---|---|---|
-| `WIN_USER` | ja | — | WinRM-/Domänen-Account |
-| `WIN_PASSWORD` | ja | — | Passwort dazu |
-| `WIN_TRANSPORT` | nein | `ntlm` | `ntlm` \| `kerberos` \| `credssp` \| `basic` |
-| `WIN_PORT` | nein | `5986` | WinRM-Port (HTTPS) |
-| `WIN_TLS_VERIFY` | nein | `true` | `false` deaktiviert die Zertifikatsprüfung (nur bewusst) |
+| `AD_USER` | ja | — | Bind-DN oder UPN (z. B. `svc-read@corp.example`) |
+| `AD_PASSWORD` | ja | — | Passwort dazu |
+| `AD_PORT` | nein | `636`/`389` | LDAP-Port (636 bei LDAPS, sonst 389) |
+| `AD_USE_SSL` | nein | `true` | `false` = LDAP im Klartext (nur bewusst) |
+| `AD_TLS_VERIFY` | nein | `true` | `false` deaktiviert die Zertifikatsprüfung (nur bewusst) |
+| `AD_CA_BUNDLE` | nein | — | Pfad zu einer CA-Bundle-Datei (private CA) |
+| `AD_BASE_DN` | nein | — | Such-Basis-DN; ohne Angabe der `defaultNamingContext` des DC |
 
 **2. Ziel-Host (`--host`)**
 
-- Erreichbar über WinRM (standardmäßig **HTTPS auf Port 5986**); der WinRM-Dienst
-  muss laufen und der Port aus dem Runner erreichbar sein.
-- Es muss das **RSAT-PowerShell-Modul `ActiveDirectory`** installiert sein
-  (`Import-Module ActiveDirectory` muss klappen). Das ist auf einem
-  Domänen-Mitglied als Admin-/Jump-Host (RSAT-Feature) oder direkt auf einem
-  **Domain Controller** gegeben. Ein reiner Nicht-Domänen-Host reicht **nicht**.
-- Host ist der Domäne beigetreten bzw. kann die Domäne auflösen/erreichen, damit
-  die `Get-AD*`-Cmdlets einen DC finden.
+- Ein **Domain Controller**, der per LDAP(S) erreichbar ist (standardmäßig
+  **LDAPS auf Port 636**); der LDAP-Dienst muss laufen und der Port aus dem
+  Runner erreichbar sein.
+- Bei LDAPS muss das Server-Zertifikat vertrauenswürdig sein (öffentliche CA im
+  Trust-Store, oder private CA via `AD_CA_BUNDLE`); andernfalls scheitert die
+  Zertifikatsprüfung (oder man setzt bewusst `AD_TLS_VERIFY=false`).
 
-**3. Rechte des `WIN_USER`-Accounts**
+**3. Rechte des `AD_USER`-Accounts**
 
-- **Lese**-Rechte in der AD reichen — das Skript verändert nichts. Konkret
-  genutzt: `Get-ADServiceAccount`, `Get-ADUser`, `Get-ADGroup`,
-  `Get-ADGroupMember -Recursive` und (nur bei `--group-filter`) `Get-ADGroup
-  -Filter`. Ein normaler Domänen-Benutzer kann diese Objekte i. d. R. lesen.
-- Der Account braucht **WinRM-Remoting-Rechte** auf dem Ziel-Host (Mitglied der
-  lokalen Gruppe *Remote Management Users* oder Administrator).
+- **Lese**-Rechte in der AD reichen — das Skript verändert nichts (der Bind läuft
+  `read_only`). Gelesen werden Konten (`user`/`msDS-GroupManagedServiceAccount`),
+  Gruppen und rekursive Mitgliedschaften (via `LDAP_MATCHING_RULE_IN_CHAIN`). Ein
+  normaler Domänen-Benutzer kann diese Objekte i. d. R. lesen.
 
 **4. Optionaler `--spec`-Modus**
 
@@ -85,9 +85,8 @@ folgenden Voraussetzungen erfüllt sein:
   Soll-Zustand (`account`, optional `type`, `hostnames`, `groups[].members`).
   Ohne `--spec` läuft nur der Dump (kein pass/fail).
 
-Es werden **keine** neuen ENV-Variablen und **keine** zusätzliche Python-/System-
-Abhängigkeit benötigt (`pywinrm` ist bereits Projekt-Dependency, die Spec wird
-mit der stdlib gelesen).
+Die Python-Abhängigkeit `ldap3` ist Projekt-Dependency (`pyproject.toml`); die
+Spec wird mit der stdlib gelesen.
 
 ## Renovate-Pipeline: Netzwerk-Ziele
 

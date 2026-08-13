@@ -1,4 +1,4 @@
-"""Tests für scripts/ad_app_onboarding.py"""
+"""Tests für scripts/ad_app_onboarding.py (LDAP-Pfad, gemockt)."""
 
 from __future__ import annotations
 
@@ -7,51 +7,70 @@ import json
 import pytest
 
 from scripts.ad_app_onboarding import (
-    _ps_assign_array,
     evaluate,
+    fetch_account,
     hostnames_from_spns,
     main,
 )
 
-# --- Kanonische Fake-WinRM-Antworten ---------------------------------------
+# --- Kanonische Fake-LDAP-Einträge -----------------------------------------
 
-ACCOUNT_JSON = json.dumps(
-    {
-        "exists": True,
-        "type": "gMSA",
-        "enabled": True,
-        "distinguishedName": "CN=svc-app01,OU=Service,DC=corp",
-        "servicePrincipalNames": ["HTTP/app.corp:443", "HTTP/app01.corp", "HOST/app.corp"],
+ACCOUNT_ENTRY = {
+    "dn": "CN=svc-app01,OU=Service,DC=corp",
+    "attrs": {
+        "sAMAccountName": ["svc-app01"],
+        # gMSA: enthält die spezifische Klasse -> type == 'gMSA'.
+        "objectClass": ["top", "computer", "msDS-GroupManagedServiceAccount"],
+        "userAccountControl": [4096],  # ACCOUNTDISABLE-Bit nicht gesetzt -> enabled
+        "distinguishedName": ["CN=svc-app01,OU=Service,DC=corp"],
+        "servicePrincipalName": ["HTTP/app.corp:443", "HTTP/app01.corp", "HOST/app.corp"],
         "memberOf": ["CN=App-XYZ-Users,OU=Groups,DC=corp"],
-    }
-)
+    },
+}
 
-GROUPS_JSON = json.dumps(
-    [
-        {
-            "name": "App-XYZ-Users",
-            "exists": True,
-            "distinguishedName": "CN=App-XYZ-Users,OU=Groups,DC=corp",
-            "members": [
-                {"name": "jdoe", "objectClass": "user"},
-                {"name": "asmith", "objectClass": "user"},
-            ],
-        }
-    ]
-)
+GROUP_ENTRY = {
+    "dn": "CN=App-XYZ-Users,OU=Groups,DC=corp",
+    "attrs": {
+        "cn": ["App-XYZ-Users"],
+        "distinguishedName": ["CN=App-XYZ-Users,OU=Groups,DC=corp"],
+    },
+}
+
+MEMBER_ENTRIES = [
+    {"dn": "CN=jdoe,DC=corp", "attrs": {"sAMAccountName": ["jdoe"], "objectClass": ["top", "person", "user"]}},
+    {"dn": "CN=asmith,DC=corp", "attrs": {"sAMAccountName": ["asmith"], "objectClass": ["top", "person", "user"]}},
+]
+
+RULE = "1.2.840.113556.1.4.1941"
 
 
-def _fake_run_ps(account=ACCOUNT_JSON, groups=GROUPS_JSON):
-    """Liefert eine side_effect-Funktion: 1. Aufruf = Konto, weitere = Gruppen."""
-    calls = {"n": 0}
+def _fake_search(*, account=ACCOUNT_ENTRY, group=GROUP_ENTRY, members=MEMBER_ENTRIES, filter_groups=None):
+    """Baut eine search()-Ersatzfunktion, die anhand des LDAP-Filters dispatcht."""
 
-    def side_effect(host, script):  # noqa: ARG001
-        calls["n"] += 1
-        if "Get-ADServiceAccount" in script:
-            return account
-        return groups
+    def search(conn, base, search_filter, attributes):  # noqa: ARG001
+        if RULE in search_filter:  # rekursive Mitglieder
+            return list(members)
+        if "msDS-GroupManagedServiceAccount" in search_filter:  # Konto
+            return [account] if account is not None else []
+        if "objectClass=group" in search_filter and "sAMAccountName=" in search_filter:  # Gruppe by name
+            return [group] if group is not None else []
+        if "objectClass=group" in search_filter:  # --group-filter (cn-Wildcard)
+            return list(filter_groups or [])
+        return []
 
-    return side_effect
+    return search
+
+
+@pytest.fixture
+def patch_ldap(monkeypatch):
+    """Neutralisiert connect()/base_dn() und erlaubt, search() zu setzen."""
+    monkeypatch.setattr("scripts.ad_app_onboarding.connect", lambda _host: object())
+    monkeypatch.setattr("scripts.ad_app_onboarding.base_dn", lambda _conn: "DC=corp")
+
+    def set_search(fn):
+        monkeypatch.setattr("scripts.ad_app_onboarding.search", fn)
+
+    return set_search
 
 
 # --- reine Helfer -----------------------------------------------------------
@@ -66,9 +85,23 @@ def test_hostnames_from_spns_empty():
     assert hostnames_from_spns([]) == []
 
 
-def test_ps_assign_array_quotes_and_escapes():
-    # Einfache Anfuehrungszeichen werden verdoppelt (PowerShell-Escaping).
-    assert _ps_assign_array("Names", ["a", "o'brien"]) == "$Names = @('a', 'o''brien')"
+def test_fetch_account_maps_type_and_enabled(patch_ldap):
+    patch_ldap(_fake_search())
+    acc = fetch_account(object(), "svc-app01")
+    assert acc["exists"] is True
+    assert acc["type"] == "gMSA"
+    assert acc["enabled"] is True
+    assert acc["servicePrincipalNames"][0] == "HTTP/app.corp:443"
+
+
+def test_fetch_account_disabled_bit(patch_ldap):
+    entry = json.loads(json.dumps(ACCOUNT_ENTRY))  # deep copy
+    entry["attrs"]["userAccountControl"] = [514]  # 0x2 gesetzt -> disabled
+    entry["attrs"]["objectClass"] = ["top", "person", "user"]  # kein gMSA -> type user
+    patch_ldap(_fake_search(account=entry))
+    acc = fetch_account(object(), "jdoe")
+    assert acc["type"] == "user"
+    assert acc["enabled"] is False
 
 
 # --- Aufruf-Fehler ----------------------------------------------------------
@@ -83,9 +116,9 @@ def test_usage_missing_args_exits_two():
 # --- Dump-Modus -------------------------------------------------------------
 
 
-def test_dump_happy_path(monkeypatch, capsys):
-    monkeypatch.setattr("scripts.ad_app_onboarding.run_ps", _fake_run_ps())
-    rc = main(["--host", "adhost", "--account", "svc-app01", "--json"])
+def test_dump_happy_path(patch_ldap, capsys):
+    patch_ldap(_fake_search())
+    rc = main(["--host", "dc01", "--account", "svc-app01", "--json"])
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert out["account"]["exists"] is True
@@ -95,25 +128,18 @@ def test_dump_happy_path(monkeypatch, capsys):
     assert member_names == {"jdoe", "asmith"}
 
 
-def test_dump_account_missing(monkeypatch, capsys):
-    monkeypatch.setattr("scripts.ad_app_onboarding.run_ps", _fake_run_ps(account="{}"))
-    rc = main(["--host", "adhost", "--account", "ghost", "--json"])
+def test_dump_account_missing(patch_ldap, capsys):
+    patch_ldap(_fake_search(account=None))
+    rc = main(["--host", "dc01", "--account", "ghost", "--json"])
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert out["account"]["exists"] is False
     assert out["hostnames"] == []
 
 
-def test_group_filter_discovers_and_reads(monkeypatch, capsys):
-    def side_effect(host, script):  # noqa: ARG001
-        if "Get-ADServiceAccount" in script:
-            return ACCOUNT_JSON
-        if "-Filter" in script:  # ad_groups_by_filter.ps1
-            return json.dumps(["App-XYZ-Users"])
-        return GROUPS_JSON  # ad_groups.ps1
-
-    monkeypatch.setattr("scripts.ad_app_onboarding.run_ps", side_effect)
-    rc = main(["--host", "adhost", "--account", "svc-app01", "--group-filter", "App-XYZ-*", "--json"])
+def test_group_filter_discovers_and_reads(patch_ldap, capsys):
+    patch_ldap(_fake_search(filter_groups=[GROUP_ENTRY]))
+    rc = main(["--host", "dc01", "--account", "svc-app01", "--group-filter", "App-XYZ-*", "--json"])
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert [g["name"] for g in out["groups"]] == ["App-XYZ-Users"]
@@ -128,8 +154,8 @@ def _write_spec(tmp_path, spec):
     return str(p)
 
 
-def test_spec_pass(monkeypatch, tmp_path):
-    monkeypatch.setattr("scripts.ad_app_onboarding.run_ps", _fake_run_ps())
+def test_spec_pass(patch_ldap, tmp_path):
+    patch_ldap(_fake_search())
     spec = _write_spec(
         tmp_path,
         {
@@ -139,27 +165,27 @@ def test_spec_pass(monkeypatch, tmp_path):
             "groups": [{"name": "App-XYZ-Users", "members": ["jdoe", "asmith"]}],
         },
     )
-    rc = main(["--host", "adhost", "--account", "svc-app01", "--spec", spec])
+    rc = main(["--host", "dc01", "--account", "svc-app01", "--spec", spec])
     assert rc == 0
 
 
-def test_spec_fail_missing_member(monkeypatch, tmp_path, capsys):
-    monkeypatch.setattr("scripts.ad_app_onboarding.run_ps", _fake_run_ps())
+def test_spec_fail_missing_member(patch_ldap, tmp_path, capsys):
+    patch_ldap(_fake_search())
     spec = _write_spec(
         tmp_path,
         {"groups": [{"name": "App-XYZ-Users", "members": ["jdoe", "not-there"]}]},
     )
-    rc = main(["--host", "adhost", "--account", "svc-app01", "--json", "--spec", spec])
+    rc = main(["--host", "dc01", "--account", "svc-app01", "--json", "--spec", spec])
     assert rc == 1
     report = json.loads(capsys.readouterr().out)
     failed = [c for c in report["checks"] if not c["ok"]]
     assert any(c["target"] == "App-XYZ-Users/not-there" for c in failed)
 
 
-def test_spec_fail_missing_hostname(monkeypatch, tmp_path):
-    monkeypatch.setattr("scripts.ad_app_onboarding.run_ps", _fake_run_ps())
+def test_spec_fail_missing_hostname(patch_ldap, tmp_path):
+    patch_ldap(_fake_search())
     spec = _write_spec(tmp_path, {"hostnames": ["app.corp", "missing.corp"]})
-    rc = main(["--host", "adhost", "--account", "svc-app01", "--spec", spec])
+    rc = main(["--host", "dc01", "--account", "svc-app01", "--spec", spec])
     assert rc == 1
 
 
