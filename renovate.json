@@ -26,8 +26,9 @@
       "pinDigests": true
     },
     {
-      "description": "Label major updates so they stand out in the PR list",
+      "description": "Major updates open a PR but wait for manual review/merge — safer than auto-merging breaking changes.",
       "matchUpdateTypes": ["major"],
+      "automerge": false,
       "labels": ["dependencies", "major-update"]
     },
     {
