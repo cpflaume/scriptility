@@ -7,12 +7,12 @@
     ":preserveSemverRanges"
   ],
   "timezone": "Europe/Berlin",
-  "schedule": ["before 6am on monday"],
   "labels": ["dependencies"],
   "rangeStrategy": "bump",
+  "automerge": true,
+  "platformAutomerge": true,
   "lockFileMaintenance": {
-    "enabled": true,
-    "schedule": ["before 6am on monday"]
+    "enabled": true
   },
   "packageRules": [
     {
@@ -21,30 +21,13 @@
       "groupName": "all non-major"
     },
     {
-      "description": "Auto-merge dev-only dependencies on patch/minor",
-      "matchDepTypes": ["dev", "devDependencies"],
-      "matchUpdateTypes": ["patch", "minor"],
-      "automerge": true,
-      "automergeType": "pr",
-      "platformAutomerge": true
-    },
-    {
-      "description": "Auto-merge GitHub Actions on patch/minor",
-      "matchManagers": ["github-actions"],
-      "matchUpdateTypes": ["patch", "minor", "digest"],
-      "automerge": true,
-      "automergeType": "pr",
-      "platformAutomerge": true
-    },
-    {
       "description": "Pin GitHub Actions to commit SHA",
       "matchManagers": ["github-actions"],
       "pinDigests": true
     },
     {
-      "description": "Major updates need manual review",
+      "description": "Label major updates so they stand out in the PR list",
       "matchUpdateTypes": ["major"],
-      "automerge": false,
       "labels": ["dependencies", "major-update"]
     },
     {
@@ -55,8 +38,7 @@
   ],
   "vulnerabilityAlerts": {
     "labels": ["security"],
-    "schedule": ["at any time"],
-    "automerge": false
+    "schedule": ["at any time"]
   },
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
